@@ -1,0 +1,2872 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WeChat Newsroom · Writing Workflow</title>
+    <style>
+        :root {
+            --wechat-green: #07C160;
+            --wechat-dark: #1AAD19;
+            --bg: #F5F5F5;
+            --card: #FFFFFF;
+            --text: #1F1F1F;
+            --text-light: #888888;
+            --border: #E5E5E5;
+            --accent: #576B95;
+            --coral: #E8895A;
+            --violet: #8B6FBF;
+            --history-width: 320px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        #historySidebar {
+            width: var(--history-width);
+            background: var(--card);
+            border-right: 1.5px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            z-index: 100;
+            transform: translateX(-100%);
+            transition: transform 0.3s ease;
+        }
+        #historySidebar.open {
+            transform: translateX(0);
+            box-shadow: 4px 0 20px rgba(0,0,0,0.12);
+        }
+        .sidebar-header {
+            padding: 20px 20px 16px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .sidebar-header h3 { font-size: 15px; font-weight: 700; }
+        .sidebar-close {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: var(--text-light);
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .sidebar-close:hover { background: var(--bg); }
+        .sidebar-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+        }
+        .sidebar-footer {
+            padding: 12px;
+            border-top: 1px solid var(--border);
+        }
+        .history-empty {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-light);
+            font-size: 13px;
+        }
+        .history-empty-icon { font-size: 32px; margin-bottom: 12px; }
+        .history-item {
+            background: var(--bg);
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1.5px solid transparent;
+        }
+        .history-item:hover { border-color: var(--wechat-green); background: #f0f9f2; }
+        .history-item.active { border-color: var(--wechat-green); background: #e8f7ed; }
+        .history-item-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .history-item-meta {
+            font-size: 11px;
+            color: var(--text-light);
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .history-item-meta span {
+            background: white;
+            padding: 2px 6px;
+            border-radius: 6px;
+        }
+        .history-actions {
+            display: flex;
+            gap: 4px;
+            margin-top: 8px;
+        }
+        .history-actions button {
+            flex: 1;
+            padding: 4px 8px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: white;
+            font-size: 11px;
+            cursor: pointer;
+            font-family: inherit;
+            color: var(--text-light);
+        }
+        .history-actions button:hover { background: var(--bg); }
+        .history-actions button.copy-btn:hover { color: var(--wechat-dark); border-color: var(--wechat-green); }
+        .history-actions button.del-btn:hover { color: #e74c3c; border-color: #e74c3c; }
+
+        /* History overlay */
+        #historyOverlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.3);
+            z-index: 99;
+        }
+        #historyOverlay.show { display: block; }
+
+        /* History view modal */
+        #historyViewModal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 200;
+            justify-content: center;
+            align-items: center;
+            padding: 24px;
+        }
+        #historyViewModal.show { display: flex; }
+        .history-modal-box {
+            background: white;
+            border-radius: 20px;
+            max-width: 800px;
+            width: 100%;
+            max-height: 85vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+        }
+        .history-modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+        .history-modal-header h3 { font-size: 16px; }
+        .history-modal-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+        }
+        .history-modal-body pre {
+            font-size: 13px;
+            line-height: 1.8;
+            white-space: pre-wrap;
+            font-family: inherit;
+            color: var(--text);
+        }
+        .history-modal-footer {
+            padding: 16px 24px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+            flex-shrink: 0;
+        }
+
+        /* Main content */
+        .main-content {
+            flex: 1;
+            margin-left: 0;
+            transition: margin-left 0.3s ease;
+        }
+        body.sidebar-open .main-content {
+            margin-left: var(--history-width);
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #1AAD19, #07C160);
+            color: white;
+            padding: 48px 24px 40px;
+            text-align: center;
+            position: relative;
+        }
+        .header-top-right {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+        }
+        .btn-history {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            cursor: pointer;
+            font-family: inherit;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+        .btn-history:hover { background: rgba(255,255,255,0.3); }
+        .header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+        .header p { font-size: 15px; opacity: 0.88; max-width: 520px; margin: 0 auto; }
+        .pill-row { margin-top: 20px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+        .pill {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 4px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+        }
+
+        /* Workflow */
+        .workflow-section { padding: 48px 24px 32px; max-width: 1100px; margin: 0 auto; }
+        .workflow-label { text-align: center; font-size: 13px; color: var(--text-light); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 32px; }
+        .workflow-track { display: grid; grid-template-columns: 1fr 80px 1fr 80px 1fr; align-items: center; }
+        .shrimp-card {
+            background: var(--card);
+            border-radius: 16px;
+            padding: 28px 24px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+            border: 1.5px solid var(--border);
+        }
+        .shrimp-icon { width: 52px; height: 52px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 26px; margin-bottom: 16px; }
+        .shrimp-card.topic .shrimp-icon { background: #E8F7ED; }
+        .shrimp-card.copy .shrimp-icon { background: #E8F0F9; }
+        .shrimp-card.review .shrimp-icon { background: #FDF3E8; }
+        .shrimp-name { font-size: 17px; font-weight: 700; margin-bottom: 2px; }
+        .shrimp-card.topic .shrimp-name { color: var(--wechat-dark); }
+        .shrimp-card.copy .shrimp-name { color: var(--accent); }
+        .shrimp-card.review .shrimp-name { color: var(--coral); }
+        .shrimp-sub { font-size: 12px; color: var(--text-light); margin-bottom: 14px; }
+        .shrimp-desc { font-size: 14px; color: var(--text); line-height: 1.7; }
+        .shrimp-tags { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 6px; }
+        .tag { font-size: 11px; padding: 3px 10px; border-radius: 20px; background: #F5F5F5; color: var(--text-light); }
+        .shrimp-card.topic .tag { background: #E8F7ED; color: #1AAD19; }
+        .shrimp-card.copy .tag { background: #E8F0F9; color: #576B95; }
+        .shrimp-card.review .tag { background: #FDF3E8; color: #E8895A; }
+        .arrow-cell { display: flex; align-items: center; justify-content: center; }
+        .arrow-right { font-size: 24px; color: var(--text-light); }
+
+        /* Input */
+        .input-section { max-width: 720px; margin: 0 auto; padding: 0 24px 64px; }
+        .input-card { background: var(--card); border-radius: 20px; padding: 36px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); border: 1.5px solid var(--border); }
+        .input-card h2 { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+        .input-card .sub { font-size: 13px; color: var(--text-light); margin-bottom: 24px; }
+        .input-group { margin-bottom: 16px; }
+        .input-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+        .input-group label span { font-weight: 400; color: var(--text-light); margin-left: 6px; }
+        textarea { width: 100%; border: 1.5px solid var(--border); border-radius: 12px; padding: 14px 16px; font-size: 14px; font-family: inherit; resize: vertical; outline: none; min-height: 100px; }
+        textarea:focus { border-color: var(--wechat-green); }
+        select { width: 100%; border: 1.5px solid var(--border); border-radius: 12px; padding: 12px 16px; font-size: 14px; font-family: inherit; outline: none; background: white; cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L1 3h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 16px center; }
+        .btn-row { display: flex; gap: 12px; margin-top: 24px; flex-wrap: wrap; }
+        .btn { padding: 12px 28px; border-radius: 12px; border: none; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-family: inherit; }
+        .btn-primary { background: var(--wechat-green); color: white; }
+        .btn-primary:hover { background: #1AAD19; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(7,193,96,0.3); }
+        .btn-primary:disabled { background: #ccc; cursor: not-allowed; transform: none; box-shadow: none; }
+        .btn-secondary { background: white; color: var(--text); border: 1.5px solid var(--border); }
+        .btn-secondary:hover { background: #F5F5F5; }
+        .btn-outline { background: white; color: var(--wechat-green); border: 1.5px solid var(--wechat-green); }
+        .btn-outline:hover { background: #f0fdf4; }
+        .btn-sm { padding: 6px 16px; font-size: 13px; }
+        .btn-danger { background: #f5f0f0; color: #c0392b; border: 1px solid #e8c8c8; }
+        .btn-danger:hover { background: #f9e8e8; }
+
+        /* Output */
+        .output-section { max-width: 720px; margin: 0 auto; padding: 0 24px 80px; }
+        .output-card { background: var(--card); border-radius: 20px; padding: 32px 36px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); border: 1.5px solid var(--border); margin-bottom: 24px; display: none; }
+        .output-card.show { display: block; animation: fadeUp 0.4s ease; }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+        .stage-label { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-light); margin-bottom: 16px; }
+        .output-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+        .status-badge { font-size: 11px; padding: 3px 10px; border-radius: 20px; font-weight: 500; letter-spacing: 0; text-transform: none; }
+        .status-badge.draft { background: #FFF3E0; color: #E8895A; }
+        .status-badge.passed { background: #E8F7ED; color: #1AAD19; }
+        .status-badge.active { background: #EDE8F7; color: #8B6FBF; }
+        .output-content { font-size: 14px; line-height: 1.8; white-space: pre-wrap; background: #FAFBFC; border-radius: 12px; padding: 20px 24px; border: 1px solid var(--border); max-height: 400px; overflow-y: auto; }
+
+        /* Checklist */
+        .checklist { list-style: none; }
+        .checklist li { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+        .checklist li:last-child { border-bottom: none; }
+        .check-icon { width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; flex-shrink: 0; margin-top: 1px; }
+        .check-icon.ok { background: #E8F7ED; color: #1AAD19; }
+        .check-icon.warn { background: #FFF3E0; color: #E8895A; }
+
+        /* Detail tabs */
+        .detail-section { max-width: 720px; margin: 0 auto; padding: 0 24px 64px; }
+        .detail-header { font-size: 13px; font-weight: 700; margin-bottom: 16px; }
+        .detail-tabs { display: flex; gap: 4px; margin-bottom: 24px; background: white; border-radius: 12px; padding: 4px; border: 1.5px solid var(--border); }
+        .detail-tab { flex: 1; padding: 10px 8px; border: none; background: transparent; border-radius: 9px; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--text-light); font-family: inherit; }
+        .detail-tab.active { background: var(--card); color: var(--text); box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+        .detail-panel { display: none; }
+        .detail-panel.active { display: block; }
+        .detail-card { background: var(--card); border-radius: 16px; padding: 24px; border: 1.5px solid var(--border); margin-bottom: 16px; }
+        .detail-card h4 { font-size: 15px; font-weight: 700; margin-bottom: 12px; }
+        .detail-card ul { list-style: none; }
+        .detail-card ul li { font-size: 13.5px; padding: 6px 0; display: flex; align-items: flex-start; gap: 8px; }
+        .detail-card ul li::before { content: '·'; font-weight: 700; color: var(--wechat-green); font-size: 18px; }
+
+        /* Footer */
+        .footer { text-align: center; padding: 32px 24px; color: var(--text-light); font-size: 12px; border-top: 1px solid var(--border); }
+
+        /* API Provider Banner */
+        #apiKeyBanner {
+            background: #fff8e6;
+            border-bottom: 2px solid #ffc107;
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            font-size: 13px;
+        }
+        #apiKeyBanner.connected {
+            background: #e8f7ed;
+            border-color: var(--wechat-green);
+        }
+        #apiKeyBanner label { font-weight: 600; white-space: nowrap; }
+        #providerSelect {
+            border: 1.5px solid #ffc107;
+            border-radius: 8px;
+            padding: 6px 28px 6px 10px;
+            font-size: 13px;
+            font-family: inherit;
+            outline: none;
+            background: white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L1 3h10z'/%3E%3C/svg%3E") no-repeat right 10px center;
+            appearance: none;
+            cursor: pointer;
+        }
+        #apiKeyBanner.connected #providerSelect { border-color: var(--wechat-green); }
+        #apiKeyInput {
+            flex: 1;
+            min-width: 200px;
+            border: 1.5px solid #ffc107;
+            border-radius: 8px;
+            padding: 6px 12px;
+            font-size: 13px;
+            font-family: monospace;
+            outline: none;
+            background: white;
+        }
+        #apiKeyBanner.connected #apiKeyInput { border-color: var(--wechat-green); }
+        #btnSaveKey {
+            padding: 6px 16px;
+            background: #ffc107;
+            color: #1F1F1F;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+            white-space: nowrap;
+        }
+        #apiKeyBanner.connected #btnSaveKey { background: var(--wechat-green); color: white; }
+        #apiKeyStatus { font-size: 12px; color: var(--text-light); }
+        .provider-hint { font-size: 11px; color: var(--text-light); width: 100%; padding-top: 2px; }
+
+        /* Toast notification */
+        #toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(80px);
+            background: #1F1F1F;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-size: 14px;
+            z-index: 9999;
+            transition: transform 0.3s ease;
+            pointer-events: none;
+        }
+        #toast.show { transform: translateX(-50%) translateY(0); }
+
+        /* Mobile */
+        @media (max-width: 768px) {
+            :root { --history-width: 85vw; }
+            .workflow-track { grid-template-columns: 1fr; gap: 16px; }
+            .arrow-cell { justify-content: flex-start; transform: rotate(90deg); height: 24px; }
+            .input-card, .output-card { padding: 24px 20px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- History Sidebar -->
+<div id="historyOverlay"></div>
+<nav id="historySidebar">
+    <div class="sidebar-header">
+        <h3>📜 Article History</h3>
+        <button class="sidebar-close" id="closeSidebar">×</button>
+    </div>
+    <div class="sidebar-body" id="historyList">
+        <div class="history-empty">
+            <div class="history-empty-icon">📭</div>
+            <p>No articles yet.<br>Start a topic to begin.</p>
+        </div>
+    </div>
+    <div class="sidebar-footer">
+        <button class="btn btn-secondary btn-sm" id="clearAllHistory" style="width:100%;color:#c0392b;">
+            🗑️ Clear All History
+        </button>
+    </div>
+</nav>
+
+<!-- History View Modal -->
+<div id="historyViewModal">
+    <div class="history-modal-box">
+        <div class="history-modal-header">
+            <h3 id="modalTitle">Article Preview</h3>
+            <button class="sidebar-close" id="closeModal" style="font-size:24px;">×</button>
+        </div>
+        <div class="history-modal-body">
+            <pre id="modalContent"></pre>
+        </div>
+        <div class="history-modal-footer">
+            <button class="btn btn-secondary btn-sm" id="modalCopy">📋 Copy Text</button>
+            <button class="btn btn-secondary btn-sm" id="modalRestore">🚀 Use as Draft</button>
+            <button class="btn btn-danger btn-sm" id="modalDelete">🗑️ Delete</button>
+        </div>
+    </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<!-- Main Content -->
+<div class="main-content">
+
+<!-- API Key Banner -->
+<div id="apiKeyBanner">
+    <label>🤖 AI Provider</label>
+    <select id="providerSelect">
+        <option value="openrouter">OpenRouter (免费)</option>
+        <option value="anthropic">Anthropic (Claude)</option>
+        <option value="gemini">Google Gemini</option>
+        <option value="openai">OpenAI (GPT)</option>
+    </select>
+    <input type="password" id="apiKeyInput" placeholder="Paste your API key here..." autocomplete="off" />
+    <button id="btnSaveKey">Connect</button>
+    <button id="btnTestKey" style="padding:6px 14px;background:white;border:1.5px solid #ccc;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit;">🧪 Test</button>
+    <span id="apiKeyStatus">⚠️ Select a provider and enter your API key</span>
+    <div class="provider-hint" id="providerHint">Anthropic: get key at console.anthropic.com · starts with sk-ant-</div>
+</div>
+
+<!-- Header -->
+<header class="header">
+    <div class="header-top-right">
+        <button class="btn-history" id="btnOpenHistory">
+            📜 History <span id="historyCount" style="background:rgba(255,255,255,0.3);padding:2px 8px;border-radius:10px;font-size:11px;">0</span>
+        </button>
+    </div>
+    <h1>🐙 WeChat Newsroom Workflow</h1>
+    <p>Topic虾 × Copy虾 × Review虾 — Structured writing pipeline</p>
+    <div class="pill-row">
+        <span class="pill">📥 Topic Input</span>
+        <span class="pill">🤖 AI-Generated Outline</span>
+        <span class="pill">✨ AI Auto-Write Draft</span>
+        <span class="pill">✅ AI + Rule Review</span>
+    </div>
+</header>
+
+<!-- Workflow -->
+<section class="workflow-section">
+    <div class="workflow-label">— Workflow —</div>
+    <div class="workflow-track">
+        <div class="shrimp-card topic">
+            <div class="shrimp-icon">🎯</div>
+            <div class="shrimp-name">Topic虾</div>
+            <div class="shrimp-sub">xuan-ti-xia</div>
+            <div class="shrimp-desc">Converts Chinese briefs into structured English topic outlines.</div>
+            <div class="shrimp-tags">
+                <span class="tag">Chinese → English</span>
+                <span class="tag">Intent Detection</span>
+            </div>
+        </div>
+        <div class="arrow-cell"><div class="arrow-right">→</div></div>
+        <div class="shrimp-card copy">
+            <div class="shrimp-icon">✨</div>
+            <div class="shrimp-name">Copy虾</div>
+            <div class="shrimp-sub">wen-an-xia</div>
+            <div class="shrimp-desc">AI auto-writes your article draft, or paste your own.</div>
+            <div class="shrimp-tags">
+                <span class="tag">AI Auto-Write</span>
+                <span class="tag">Paste Option</span>
+            </div>
+        </div>
+        <div class="arrow-cell"><div class="arrow-right">→</div></div>
+        <div class="shrimp-card review">
+            <div class="shrimp-icon">🔍</div>
+            <div class="shrimp-name">Review虾</div>
+            <div class="shrimp-sub">shen-he-xia</div>
+            <div class="shrimp-desc">Reviews articles across six dimensions.</div>
+            <div class="shrimp-tags">
+                <span class="tag">6-Dimension Review</span>
+                <span class="tag">Zero P0 Issues</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Input -->
+<section class="input-section">
+    <div class="input-card">
+        <h2>🚀 Start a New Topic</h2>
+        <p class="sub">Enter your idea in Chinese or English</p>
+
+        <div class="input-group">
+            <label>Topic Direction / Core Idea <span>(required)</span></label>
+            <textarea id="inputDirection" placeholder="Example: Want to write about WeChat Mini Programs for international visitors — translation, payments, and bookings..."></textarea>
+        </div>
+
+        <div class="input-group">
+            <label>Target Audience <span>(optional)</span></label>
+            <select id="inputAudience">
+                <option value="">— Select audience —</option>
+                <option value="visitor">China Visitors / International Travelers</option>
+                <option value="business">Business Travelers / Trade Fair Visitors</option>
+                <option value="student">Students / International Students</option>
+                <option value="general">General Users</option>
+            </select>
+        </div>
+
+        <div class="input-group">
+            <label>Article Type <span>(optional)</span></label>
+            <select id="inputType">
+                <option value="">— Select type —</option>
+                <option value="feature">Feature Introduction</option>
+                <option value="guide">How-to Guide</option>
+                <option value="tips">Tips List</option>
+                <option value="story">Scene-Driven Story</option>
+            </select>
+        </div>
+
+        <div class="btn-row">
+            <button class="btn btn-primary" id="btnRun">▶ Run Pipeline</button>
+            <button class="btn btn-secondary" id="btnLoadSample">📋 Load Sample</button>
+        </div>
+    </div>
+</section>
+
+<!-- Output: Stage 1 -->
+<div class="output-section">
+    <div class="output-card" id="stage1">
+        <div class="stage-label">STAGE 01</div>
+        <h3>🎯 Topic虾 · English Topic Outline <span class="status-badge draft">Pending</span></h3>
+        <div class="input-group" style="margin-top:12px;">
+            <textarea id="outlineOutput" placeholder="The generated outline will appear here — you can edit it directly..." style="min-height:200px;font-size:13px;line-height:1.7;white-space:pre-wrap;resize:vertical;"></textarea>
+        </div>
+        <div class="btn-row" style="margin-top:16px;">
+            <button class="btn btn-primary" id="btnConfirmOutline">✅ Confirm & Go to Copy虾</button>
+            <button class="btn btn-secondary" id="btnRevOutline">🔄 Regenerate</button>
+        </div>
+    </div>
+
+    <div class="output-card" id="stage2">
+        <div class="stage-label">STAGE 02</div>
+        <h3>✨ Copy虾 · Write Your Draft <span class="status-badge draft">Awaiting Input</span></h3>
+        <div style="margin-bottom:16px;">
+            <button class="btn btn-secondary btn-sm" id="btnShowOutline" style="margin-bottom:12px;">
+                📋 View Topic虾 Outline
+            </button>
+            <button class="btn btn-outline btn-sm" id="btnEditOutlineFromStage2" style="margin-bottom:12px;">
+                ✏️ Edit Topic虾 Outline
+            </button>
+            <div id="outlineRecall" style="display:none;font-size:13px;line-height:1.7;background:#FAFBFC;border:1px solid var(--border);border-radius:12px;padding:16px 20px;white-space:pre-wrap;max-height:300px;overflow-y:auto;"></div>
+        </div>
+
+        <!-- AI Write section -->
+        <div id="aiWriteSection" style="background:linear-gradient(135deg,#e8f7ed,#edf2fa);border:1.5px solid #b8dfc8;border-radius:16px;padding:20px 22px;margin-bottom:20px;">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+                <span style="font-size:22px;">🤖</span>
+                <div>
+                    <div style="font-size:14px;font-weight:700;color:#1AAD19;">AI Auto-Write</div>
+                    <div style="font-size:12px;color:#666;">Let Claude write the full draft based on your outline</div>
+                </div>
+            </div>
+            <button class="btn btn-primary" id="btnAIWrite" style="width:100%;justify-content:center;display:flex;align-items:center;gap:8px;">
+                ✨ Write Draft with AI
+            </button>
+            <div id="aiWriteStatus" style="display:none;font-size:12px;color:#1AAD19;margin-top:10px;text-align:center;"></div>
+        </div>
+
+        <div style="text-align:center;font-size:12px;color:var(--text-light);margin-bottom:16px;">— or paste your own draft —</div>
+        <p style="font-size:13px;color:var(--text-light);margin-bottom:16px;">Paste the article below, then click "Confirm & Submit for Review".</p>
+        <div class="input-group">
+            <textarea id="draftInput" placeholder="Paste your article draft here, or use AI Auto-Write above..." style="min-height:240px;font-size:13px;line-height:1.7;"></textarea>
+        </div>
+        <div class="btn-row" style="margin-top:16px;">
+            <button class="btn btn-primary" id="btnConfirmDraft">✅ Confirm & Submit for Review</button>
+            <button class="btn btn-secondary" id="btnClearDraft">🗑️ Clear</button>
+        </div>
+    </div>
+
+    <div class="output-card" id="stage2Done">
+        <div class="stage-label">STAGE 02</div>
+        <h3>✍️ Copy虾 · Draft Confirmed <span class="status-badge passed">✓ Ready for Review</span></h3>
+        <div style="margin-bottom:16px;">
+            <button class="btn btn-secondary btn-sm" id="btnShowOutline2" style="margin-bottom:12px;">
+                📋 View Topic虾 Outline
+            </button>
+            <div id="outlineRecall2" style="display:none;font-size:13px;line-height:1.7;background:#FAFBFC;border:1px solid var(--border);border-radius:12px;padding:16px 20px;white-space:pre-wrap;max-height:300px;overflow-y:auto;"></div>
+        </div>
+        <div class="output-content" id="draftOutput"></div>
+        <div class="btn-row" style="margin-top:16px;">
+            <button class="btn btn-primary" id="btnSubmitReview">🔍 Submit for Review</button>
+            <button class="btn btn-secondary" id="btnEditDraft">✏️ Edit Draft</button>
+        </div>
+    </div>
+
+    <div class="output-card" id="stage3">
+        <div class="stage-label">STAGE 03</div>
+        <h3>🔍 Review虾 · Six-Dimension Review <span class="status-badge draft">Pending</span></h3>
+        <div id="reviewOutput"></div>
+        <div id="aiReviewSection" style="margin-top:16px;display:none;">
+            <div style="background:linear-gradient(135deg,#f3eeff,#edf2fa);border:1.5px solid #c8b8f0;border-radius:14px;padding:18px 20px;">
+                <div style="font-size:13px;font-weight:700;color:#8B6FBF;margin-bottom:10px;">🤖 AI Deep Review</div>
+                <div id="aiReviewOutput" style="font-size:13px;line-height:1.8;white-space:pre-wrap;color:var(--text);"></div>
+                <button id="btnAIReview" class="btn btn-secondary btn-sm" style="margin-top:12px;color:#8B6FBF;border-color:#c8b8f0;">
+                    ✨ Get AI Deep Review
+                </button>
+            </div>
+        </div>
+        <div class="btn-row" style="margin-top:16px;">
+            <button class="btn btn-primary" id="btnApprove">✅ Approve & Finalize</button>
+            <button class="btn btn-secondary" id="btnTriggerRev" title="Coming Soon: Auto-regenerate with feedback">🔄 Send Back [Beta]</button>
+        </div>
+    </div>
+
+    <div class="output-card" id="stage4">
+        <div class="stage-label">STAGE 04</div>
+        <h3>🎉 Final Deliverable <span class="status-badge passed">Complete</span></h3>
+        <div class="output-content" id="finalOutput"></div>
+        <div class="btn-row" style="margin-top:20px;">
+            <button class="btn btn-primary" id="btnCopyFinal">📋 Copy Full Text</button>
+            <button class="btn btn-outline" id="btnExportHTML">📄 Export as HTML</button>
+        </div>
+        <div class="btn-row" style="margin-top:8px;">
+            <button class="btn btn-secondary" id="btnReset">🆕 New Topic</button>
+        </div>
+    </div>
+</div>
+
+<!-- Detail Reference -->
+<section class="detail-section">
+    <div class="detail-header">📖 Role Reference</div>
+    <div class="detail-tabs">
+        <button class="detail-tab active" id="tab1">Topic虾</button>
+        <button class="detail-tab" id="tab2">Copy虾</button>
+        <button class="detail-tab" id="tab3">Review虾</button>
+    </div>
+    <div class="detail-panel active" id="panel1">
+        <div class="detail-card">
+            <h4>🎯 Topic虾 · Core Responsibilities</h4>
+            <ul>
+                <li>Receives and parses Chinese outlines, keywords, notes, ideas</li>
+                <li>Identifies core intent: topic direction, target audience, key value</li>
+                <li>Outputs structured English topic outlines</li>
+            </ul>
+        </div>
+    </div>
+    <div class="detail-panel" id="panel2">
+        <div class="detail-card">
+            <h4>✍️ Copy虾 · Workflow</h4>
+            <ul>
+                <li>Receives Topic虾 outline → Confirms with you</li>
+                <li>You paste your article draft (written in WeChat Newsroom style)</li>
+                <li>Review虾 runs 6-dimension quality check on the draft</li>
+            </ul>
+        </div>
+    </div>
+    <div class="detail-panel" id="panel3">
+        <div class="detail-card">
+            <h4>🔍 Review虾 · Six-Dimension Standards</h4>
+            <ul>
+                <li><strong>Grammar & Spelling:</strong> Syntax and spelling accuracy</li>
+                <li><strong>Native Expression:</strong> Natural English, detects Chinglish</li>
+                <li><strong>AI Fluff:</strong> AI-sounding filler phrases</li>
+                <li><strong>Brand Voice:</strong> Alignment with WeChat Newsroom style</li>
+                <li><strong>Readability:</strong> Paragraph length, heading hierarchy</li>
+                <li><strong>Accuracy:</strong> Content accuracy, no factual errors</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+<footer class="footer">
+    <p>WeChat Newsroom · Topic虾 × Copy虾 × Review虾</p>
+</footer>
+
+</div><!-- /main-content -->
+
+<script>
+// ============================================================
+// GLOBAL STATE
+// ============================================================
+var state = {
+    direction: '',
+    audience: '',
+    type: '',
+    outline: '',
+    title: '',
+    draft: '',
+    isRunning: false,
+    currentHistoryId: null
+};
+
+// ============================================================
+// MULTI-PROVIDER AI CONFIG
+// ============================================================
+var AI_CONFIG = {
+    provider: 'openrouter',   // 'openrouter' | 'anthropic' | 'gemini' | 'openai'
+    apiKey: ''
+};
+
+var PROVIDER_META = {
+    openrouter: {
+        label: 'OpenRouter (免费)',
+        hint: '免费注册 openrouter.ai · 有多个免费模型可用',
+        placeholder: 'sk-or-v1-...',
+        validate: function(k) { return k.length > 20; }
+    },
+    anthropic: {
+        label: 'Anthropic (Claude)',
+        hint: 'Get key at console.anthropic.com · starts with sk-ant-',
+        placeholder: 'sk-ant-...',
+        validate: function(k) { return k.startsWith('sk-ant-'); }
+    },
+    gemini: {
+        label: 'Google Gemini',
+        hint: 'Get key at aistudio.google.com · free tier available',
+        placeholder: 'AIza...',
+        validate: function(k) { return k.startsWith('AIza') || k.length > 20; }
+    },
+    openai: {
+        label: 'OpenAI (GPT)',
+        hint: 'Get key at platform.openai.com · starts with sk-',
+        placeholder: 'sk-...',
+        validate: function(k) { return k.startsWith('sk-'); }
+    }
+};
+
+// ============================================================
+// MULTI-PROVIDER STREAMING HELPER
+// Unified interface — handles Anthropic, Gemini, OpenAI
+// ============================================================
+async function streamClaude(systemPrompt, userPrompt, onChunk, onDone, onError) {
+    var provider = AI_CONFIG.provider;
+    var apiKey   = AI_CONFIG.apiKey;
+
+    if (!provider || !apiKey) {
+        onError(new Error('No API key configured. Please select a provider and enter your key above.'));
+        return;
+    }
+
+    try {
+        if (provider === 'anthropic') {
+            await streamAnthropic(systemPrompt, userPrompt, apiKey, onChunk, onDone, onError);
+        } else if (provider === 'gemini') {
+            await streamGemini(systemPrompt, userPrompt, apiKey, onChunk, onDone, onError);
+        } else if (provider === 'openai') {
+            await streamOpenAI(systemPrompt, userPrompt, apiKey, onChunk, onDone, onError);
+        } else if (provider === 'openrouter') {
+            await streamOpenRouter(systemPrompt, userPrompt, apiKey, onChunk, onDone, onError);
+        } else {
+            onError(new Error('Unknown provider: ' + provider));
+        }
+    } catch(err) {
+        onError(err);
+    }
+}
+
+// ── Anthropic ──────────────────────────────────────────────
+async function streamAnthropic(systemPrompt, userPrompt, apiKey, onChunk, onDone, onError) {
+    // First try streaming
+    try {
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': apiKey,
+                'anthropic-version': '2023-06-01',
+                'anthropic-dangerous-direct-browser-access': 'true'
+            },
+            body: JSON.stringify({
+                model: 'claude-sonnet-4-20250514',
+                max_tokens: 2000,
+                system: systemPrompt,
+                stream: true,
+                messages: [{ role: 'user', content: userPrompt }]
+            })
+        });
+        if (!response.ok) {
+            var errBody = await response.text().catch(() => '');
+            throw new Error('Anthropic HTTP ' + response.status + ': ' + errBody.slice(0, 200));
+        }
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '', fullText = '';
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop();
+            for (const line of lines) {
+                if (!line.startsWith('data: ')) continue;
+                const data = line.slice(6).trim();
+                if (data === '[DONE]') continue;
+                try {
+                    const json = JSON.parse(data);
+                    if (json.type === 'content_block_delta' && json.delta && json.delta.text) {
+                        fullText += json.delta.text;
+                        onChunk(json.delta.text, fullText);
+                    }
+                } catch(e) {}
+            }
+        }
+        onDone(fullText);
+    } catch(streamErr) {
+        // Fallback: non-streaming
+        try {
+            const response2 = await fetch('https://api.anthropic.com/v1/messages', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': apiKey,
+                    'anthropic-version': '2023-06-01',
+                    'anthropic-dangerous-direct-browser-access': 'true'
+                },
+                body: JSON.stringify({
+                    model: 'claude-sonnet-4-20250514',
+                    max_tokens: 2000,
+                    system: systemPrompt,
+                    stream: false,
+                    messages: [{ role: 'user', content: userPrompt }]
+                })
+            });
+            if (!response2.ok) {
+                var errBody2 = await response2.text().catch(() => '');
+                throw new Error('Anthropic HTTP ' + response2.status + ': ' + errBody2.slice(0, 200));
+            }
+            const json2 = await response2.json();
+            var text2 = json2?.content?.[0]?.text || '';
+            if (!text2) throw new Error('Anthropic: empty response');
+            var chunkSize = 40, fullText2 = '';
+            for (var i = 0; i < text2.length; i += chunkSize) {
+                var chunk = text2.slice(i, i + chunkSize);
+                fullText2 += chunk;
+                onChunk(chunk, fullText2);
+                await new Promise(function(r) { setTimeout(r, 16); });
+            }
+            onDone(fullText2);
+        } catch(e) {
+            onError(e);
+        }
+    }
+}
+
+// ── Google Gemini ──────────────────────────────────────────
+async function streamGemini(systemPrompt, userPrompt, apiKey, onChunk, onDone, onError) {
+    // Use standard generateContent (non-streaming) to avoid SSE CORS issues
+    var models = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-8b'];
+    var lastErr = null;
+
+    for (var mi = 0; mi < models.length; mi++) {
+        var model = models[mi];
+        var url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent?key=' + apiKey;
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    system_instruction: { parts: [{ text: systemPrompt }] },
+                    contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+                    generationConfig: { maxOutputTokens: 2000 }
+                })
+            });
+            if (!response.ok) {
+                var errBody = await response.text().catch(() => '');
+                lastErr = new Error('Gemini [' + model + '] HTTP ' + response.status + ': ' + errBody.slice(0, 200));
+                continue;
+            }
+            const json = await response.json();
+            var text = json?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            if (!text) {
+                lastErr = new Error('Gemini [' + model + ']: empty response');
+                continue;
+            }
+            // Simulate streaming by delivering in chunks
+            var chunkSize = 40;
+            var fullText = '';
+            for (var i = 0; i < text.length; i += chunkSize) {
+                var chunk = text.slice(i, i + chunkSize);
+                fullText += chunk;
+                onChunk(chunk, fullText);
+                await new Promise(function(r) { setTimeout(r, 16); });
+            }
+            onDone(fullText);
+            return;
+        } catch(e) {
+            lastErr = e;
+        }
+    }
+    onError(lastErr || new Error('All Gemini models failed'));
+}
+
+// ── OpenRouter ─────────────────────────────────────────────
+async function streamOpenRouter(systemPrompt, userPrompt, apiKey, onChunk, onDone, onError) {
+    // Try free models in order
+    var models = [
+        'google/gemini-2.0-flash-exp:free',
+        'meta-llama/llama-3.3-70b-instruct:free',
+        'deepseek/deepseek-chat-v3-0324:free'
+    ];
+    var lastErr = null;
+    for (var mi = 0; mi < models.length; mi++) {
+        var model = models[mi];
+        try {
+            const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + apiKey,
+                    'HTTP-Referer': window.location.href,
+                    'X-Title': 'WeChat Newsroom Workflow'
+                },
+                body: JSON.stringify({
+                    model: model,
+                    max_tokens: 2000,
+                    stream: true,
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user',   content: userPrompt }
+                    ]
+                })
+            });
+            if (!response.ok) {
+                var errBody = await response.text().catch(() => '');
+                lastErr = new Error('OpenRouter [' + model + '] HTTP ' + response.status + ': ' + errBody.slice(0, 200));
+                continue;
+            }
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '', fullText = '';
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop();
+                for (const line of lines) {
+                    if (!line.startsWith('data: ')) continue;
+                    const data = line.slice(6).trim();
+                    if (data === '[DONE]') continue;
+                    try {
+                        const json = JSON.parse(data);
+                        var delta = json?.choices?.[0]?.delta?.content;
+                        if (delta) { fullText += delta; onChunk(delta, fullText); }
+                    } catch(e) {}
+                }
+            }
+            onDone(fullText);
+            return;
+        } catch(e) {
+            lastErr = e;
+        }
+    }
+    onError(lastErr || new Error('All OpenRouter models failed'));
+}
+
+
+// ── OpenAI ─────────────────────────────────────────────────
+async function streamOpenAI(systemPrompt, userPrompt, apiKey, onChunk, onDone, onError) {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + apiKey
+        },
+        body: JSON.stringify({
+            model: 'gpt-4o-mini',
+            max_tokens: 2000,
+            stream: true,
+            messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user',   content: userPrompt }
+            ]
+        })
+    });
+    if (!response.ok) {
+        var errBody = await response.text().catch(() => '');
+        throw new Error('OpenAI API error ' + response.status + ': ' + errBody);
+    }
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '', fullText = '';
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop();
+        for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            const data = line.slice(6).trim();
+            if (data === '[DONE]') continue;
+            try {
+                const json = JSON.parse(data);
+                var delta = json?.choices?.[0]?.delta?.content;
+                if (delta) {
+                    fullText += delta;
+                    onChunk(delta, fullText);
+                }
+            } catch(e) {}
+        }
+    }
+    onDone(fullText);
+}
+
+
+// ============================================================
+// LOCAL STORAGE — HISTORY
+// ============================================================
+var HISTORY_KEY = 'wechat_newsroom_history';
+
+function getHistory() {
+    try {
+        return JSON.parse(localStorage.getItem(HISTORY_KEY)) || [];
+    } catch(e) { return []; }
+}
+
+function saveHistory(history) {
+    try {
+        // Limit to 50 entries to prevent QuotaExceededError
+        var limitedHistory = history.slice(0, 50);
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(limitedHistory));
+    } catch (e) {
+        console.warn('[History] Storage full, trying to clear old entries:', e);
+        try {
+            // Try to keep only 10 most recent
+            localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, 10)));
+            showToast('\u26A0\uFE0F Storage full - kept only recent entries', 3000);
+        } catch (e2) {
+            console.error('[History] Failed to save:', e2);
+            showToast('\u26A0\uFE0F Storage error - history may not be saved', 3000);
+        }
+    }
+}
+
+function addToHistory(item) {
+    var history = getHistory();
+    history.unshift(item);
+    // Keep last 50 entries (saveHistory also enforces this)
+    if (history.length > 50) history = history.slice(0, 50);
+    saveHistory(history);
+    updateHistoryCount();
+}
+
+function deleteFromHistory(id) {
+    var history = getHistory();
+    history = history.filter(function(item) { return item.id !== id; });
+    saveHistory(history);
+    updateHistoryCount();
+}
+
+function clearAllHistory() {
+    if (confirm('Delete all history? This cannot be undone.')) {
+        localStorage.removeItem(HISTORY_KEY);
+        updateHistoryCount();
+        renderHistoryList();
+        closeModal();
+    }
+}
+
+function updateHistoryCount() {
+    var count = getHistory().length;
+    document.getElementById('historyCount').textContent = count;
+}
+
+function renderHistoryList() {
+    var history = getHistory();
+    var list = document.getElementById('historyList');
+    if (history.length === 0) {
+        list.innerHTML = '<div class="history-empty"><div class="history-empty-icon">📭</div><p>No articles yet.<br>Start a topic to begin.</p></div>';
+        return;
+    }
+    var html = '';
+    history.forEach(function(item) {
+        var date = new Date(item.savedAt).toLocaleDateString('en-US', {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
+        var words = item.draft ? item.draft.split(/\s+/).length : 0;
+        var typeLabel = {
+            feature: 'Feature',
+            guide: 'Guide',
+            tips: 'Tips',
+            story: 'Story'
+        }[item.type] || 'General';
+        html += '<div class="history-item" data-id="' + item.id + '">';
+        html += '<div class="history-item-title">' + (item.title || 'Untitled') + '</div>';
+        html += '<div class="history-item-meta">';
+        html += '<span>' + date + '</span>';
+        html += '<span>' + words + ' words</span>';
+        if (item.type) html += '<span>' + typeLabel + '</span>';
+        html += '</div>';
+        html += '<div class="history-actions">';
+        html += '<button class="copy-btn" onclick="event.stopPropagation();copyHistory(\'' + item.id + '\')">📋 Copy</button>';
+        html += '<button class="del-btn" onclick="event.stopPropagation();deleteSingle(\'' + item.id + '\')">🗑️</button>';
+        html += '</div></div>';
+    });
+    list.innerHTML = html;
+    // Click to view
+    list.querySelectorAll('.history-item').forEach(function(el) {
+        el.onclick = function() { viewHistory(el.getAttribute('data-id')); };
+    });
+}
+
+function copyHistory(id) {
+    var history = getHistory();
+    var item = history.find(function(h) { return h.id === id; });
+    if (!item) return;
+    copyToClipboard(item.draft || '');
+}
+
+function deleteSingle(id) {
+    if (confirm('Delete this article from history?')) {
+        deleteFromHistory(id);
+        renderHistoryList();
+    }
+}
+
+var currentModalId = null;
+
+function viewHistory(id) {
+    var history = getHistory();
+    var item = history.find(function(h) { return h.id === id; });
+    if (!item) return;
+    currentModalId = id;
+    document.getElementById('modalTitle').textContent = item.title || 'Untitled Article';
+    document.getElementById('modalContent').textContent = item.draft || '';
+    document.getElementById('historyViewModal').classList.add('show');
+}
+
+function closeModal() {
+    document.getElementById('historyViewModal').classList.remove('show');
+    currentModalId = null;
+}
+
+// ============================================================
+// TOAST
+// ============================================================
+function showToast(msg) {
+    var toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    setTimeout(function() { toast.classList.remove('show'); }, 2500);
+}
+
+function copyToClipboard(text) {
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).then(function() {
+            showToast('📋 Copied to clipboard!');
+        }).catch(function() { showToast('Copy failed — please select manually.'); });
+    } else {
+        showToast('Copy not supported in this browser.');
+    }
+}
+
+// ============================================================
+// SIDEBAR TOGGLE
+// ============================================================
+function openHistory() {
+    document.body.classList.add('sidebar-open');
+    document.getElementById('historySidebar').classList.add('open');
+    document.getElementById('historyOverlay').classList.add('show');
+    renderHistoryList();
+}
+
+function closeSidebar() {
+    document.body.classList.remove('sidebar-open');
+    document.getElementById('historySidebar').classList.remove('open');
+    document.getElementById('historyOverlay').classList.remove('show');
+}
+
+// ============================================================
+// UTILITY
+// ============================================================
+// AUTO-POLL: Monitor temp_article.txt for AI-generated content
+// NOTE: Requires HTTP server (file:// CORS will fail silently)
+// ============================================================
+var lastSeenContent = '';
+var pollFailureCount = 0;
+var pollFailureShown = false;
+
+function pollArticleFile() {
+    var lastTS = Date.now();
+    fetch('temp_article.txt?t=' + lastTS)
+        .then(function(resp) {
+            if (!resp.ok) return;
+            pollFailureCount = 0;
+            pollFailureShown = false;
+            return resp.text();
+        })
+        .then(function(content) {
+            if (!content || content.trim().length < 50) return;
+            if (content === lastSeenContent) return;
+
+            lastSeenContent = content;
+            var trimmed = content.trim();
+
+            // Update state and UI
+            state.draft = trimmed;
+
+            // Show in draft output if stage2 is visible
+            var draftOutput = document.getElementById('draftOutput');
+            if (draftOutput) draftOutput.textContent = trimmed;
+
+            // Auto-advance to stage2Done if user is on stage1 or stage2
+            var stage1 = document.getElementById('stage1');
+            var stage2 = document.getElementById('stage2');
+            var stage2Done = document.getElementById('stage2Done');
+            if (stage1 && stage1.classList.contains('show')) {
+                document.getElementById('outlineRecall').textContent = state.outline || '';
+                stage1.style.display = 'none';
+                stage2.style.display = 'none';
+                stage2Done.style.display = 'block';
+                var badge2 = document.querySelector('#stage2Done .status-badge');
+                if (badge2) { badge2.textContent = '\u2713 Ready for Review'; badge2.className = 'status-badge passed'; }
+                showStage('stage2Done');
+            }
+
+            showToast('\u2705 Article loaded \u2014 click Submit for Review');
+        })
+        .catch(function(err) { 
+            pollFailureCount++;
+            // Only show warning after 3 consecutive failures (6 seconds)
+            if (pollFailureCount >= 3 && !pollFailureShown) {
+                pollFailureShown = true;
+                console.warn('[AI Writing Workflow] File polling failed. If using file:// protocol, CORS will block access. Use a local HTTP server (e.g., python -m http.server) for full functionality.');
+                showToast('\u26A0\uFE0F File access blocked \u2014 Use HTTP server for AI features', 5000);
+            }
+        });
+}
+
+// Start polling immediately and every 2 seconds
+setInterval(pollArticleFile, 2000);
+pollArticleFile(); // run once on load
+
+// ============================================================
+// UTILITY
+// ============================================================
+function sleep(ms) { return new Promise(function(resolve) { setTimeout(resolve, ms); }); }
+
+function showStage(id) {
+    document.getElementById(id).classList.add('show');
+    document.getElementById(id).scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function hideStage(id) {
+    document.getElementById(id).classList.remove('show');
+}
+
+function resetStages() {
+    ['stage1','stage2','stage2Done','stage3','stage4'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) { el.classList.remove('show'); el.style.display = ''; }
+    });
+}
+
+// ============================================================
+// STAGE 1: OUTLINE GENERATOR
+// ============================================================
+function generateOutline(direction, seed) {
+    var audience = state.audience;
+    var artType = state.type;
+    var lowerD = direction.toLowerCase();
+
+    // =============================================
+    // STEP 1: Deep analysis of user's idea
+    // =============================================
+    
+    // Extract the MAIN SUBJECT from direction
+    // This is what the user specifically wants to write about
+    var mainSubject = direction.trim();
+    
+    // Extract key features/topics mentioned
+    var mentionedFeatures = [];
+    var featurePatterns = [
+        { pattern: /mini\s*programs?/gi, name: 'Mini Programs' },
+        { pattern: /translation|translate/gi, name: 'Translation' },
+        { pattern: /weixin\s*pay|wechat\s*pay|payment|pay/gi, name: 'Payment / Weixin Pay' },
+        { pattern: /voice\s*note|voice\s*message/gi, name: 'Voice Notes' },
+        { pattern: /voice\s*search/gi, name: 'Voice Search' },
+        { pattern: /qr\s*code|qr\s*scan/gi, name: 'QR Code Scanning' },
+        { pattern: /passkey|passcode|facial|face\s*id|biometric/gi, name: 'Security / Passkey' },
+        { pattern: /health\s*code/gi, name: 'Health Code' },
+        { pattern: /file\s*preview|document\s*preview/gi, name: 'File Preview' },
+        { pattern: /booking|reservation|appointment/gi, name: 'Booking / Reservations' },
+        { pattern: /didi|ride|train\s*ticket|metro|subway|transport/gi, name: 'Transport / Getting Around' },
+        { pattern: /food\s*delivery|restaurant|外卖|dining/gi, name: 'Food & Dining' },
+        { pattern: /business|trade\s*fair|canton|supplier|sourcing/gi, name: 'Business / Trade Fair' },
+        { pattern: /safety|scam|fraud|security|protect/gi, name: 'Safety & Security' },
+        { pattern: /friend\s*request|connect|加好友/gi, name: 'Connecting with People' },
+        { pattern: /sticker|emoji|expression/gi, name: 'Stickers & Expressions' },
+        { pattern: /status|story|moment/gi, name: 'Moments / Status' },
+        { pattern: /call|video\s*call|voice\s*call/gi, name: 'Voice & Video Calls' },
+        { pattern: /digital\s*wall?et|international\s*card/gi, name: 'Digital Wallet' }
+    ];
+    
+    for (var i = 0; i < featurePatterns.length; i++) {
+        if (featurePatterns[i].pattern.test(direction)) {
+            mentionedFeatures.push(featurePatterns[i].name);
+        }
+    }
+    
+    // Extract the PURPOSE / USE CASE
+    var purpose = '';
+    if (/visitor|travel|trip|来华|旅游/i.test(direction)) {
+        purpose = 'International visitors / travelers in China';
+    } else if (/business|trade|fair|商贸/i.test(direction)) {
+        purpose = 'Business travelers / trade fair attendees';
+    } else if (/student/i.test(direction)) {
+        purpose = 'International students in China';
+    } else {
+        purpose = 'General users exploring WeChat features';
+    }
+
+    // Extract any specific SCENARIOS mentioned
+    var scenarios = [];
+    if (/airport|flight/i.test(direction)) scenarios.push('at the airport or during flights');
+    if (/hotel|accommodation/i.test(direction)) scenarios.push('booking hotels');
+    if (/restaurant|food|dining/i.test(direction)) scenarios.push('ordering food');
+    if (/taxi|didi|uber/i.test(direction)) scenarios.push('taking taxis or ride-hailing');
+    if (/hospital|doctor|medical/i.test(direction)) scenarios.push('medical situations');
+    if (/market|shopping|mall/i.test(direction)) scenarios.push('shopping and payments');
+
+    // =============================================
+    // STEP 2: Build Title based on EXACT user input
+    // =============================================
+    var title = buildTitleFromUserInput(direction, mentionedFeatures, purpose, seed);
+    state.title = title;
+
+    // =============================================
+    // STEP 3: Build AI Writing Prompt (FULL VERSION)
+    // =============================================
+    
+    // Audience
+    var audienceMap = {
+        visitor: 'International travelers and visitors to China. They are curious, practical, and want solutions for their trip. They may not know much about Chinese apps.',
+        business: 'Business travelers attending trade fairs (Canton Fair, sourcing trips) or working with Chinese suppliers. They value efficiency and clear information.',
+        student: 'International students studying in China. They need practical tips for daily life and making friends.',
+        general: 'General WeChat users exploring features for everyday use.'
+    };
+    var audienceDesc = audienceMap[audience] || audienceMap.general;
+
+    // Article type
+    var typeConfig = {
+        feature: { name: 'Feature Introduction', focus: 'Explain what it is, how it works, and why readers should care.' },
+        guide: { name: 'How-to Guide', focus: 'Step-by-step instructions with actionable tips readers can follow.' },
+        tips: { name: 'Tips & Tricks', focus: 'Practical advice in scannable bullet format.' },
+        story: { name: 'Scene-Driven Story', focus: 'Start from reader\'s situation, build empathy, then introduce the solution.' }
+    };
+    var typeInfo = typeConfig[artType] || typeConfig.feature;
+
+    // Build Core Message based on user's specific idea
+    var coreMessage = 'This article should help readers understand and use ' + 
+        (mentionedFeatures.length > 0 ? mentionedFeatures.join(', ') : mainSubject) + 
+        ' effectively in China.';
+
+    // Add scenarios if detected
+    if (scenarios.length > 0) {
+        coreMessage += ' Focus on scenarios like: ' + scenarios.join(', ') + '.';
+    }
+
+    // Build Content Focus - dynamic based on what user mentioned
+    var contentFocus = buildDynamicContentFocus(direction, mentionedFeatures, scenarios, seed);
+
+    // =============================================
+    // STEP 4: Construct Full AI Prompt
+    // =============================================
+    var aiPrompt = '# AI WRITING TASK\n' +
+        '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
+        '## 1. YOUR TOPIC (from user)\n' + mainSubject + '\n\n' +
+        '## 2. SUGGESTED TITLE\n' + title + '\n\n' +
+        '## 3. TARGET AUDIENCE\n' + audienceDesc + '\n\n' +
+        '## 4. ARTICLE TYPE\n' + typeInfo.name + '\n' +
+        'Focus: ' + typeInfo.focus + '\n\n' +
+        '## 5. CORE MESSAGE (What this article should achieve)\n' + coreMessage + '\n\n' +
+        '## 6. KEY FEATURES TO COVER\n' + contentFocus + '\n\n' +
+        '## 7. OPENING STYLE\n' + 
+        (artType === 'story' ? 'Start with a relatable scene: "You\'ve just arrived at [airport/station] and need to..."' :
+         artType === 'guide' ? 'Start with a pain point: "Ever struggled with [problem]?" then promise a solution.' :
+         'Start with a question or scenario that resonates with readers\' experience. Avoid brand-first statements.') + '\n\n' +
+        '## 8. STYLE RULES\n' +
+        '- Tone: Warm, practical, helpful (not corporate or promotional)\n' +
+        '- Length: ~430-600 words\n' +
+        '- Brand: Use "Weixin" for Chinese context, "WeChat" for international audience\n' +
+        '- Format: H2 headings + bullet points + Note/Tip boxes\n' +
+        '- CTA: End with 2-3 specific actions readers can take\n\n' +
+        '## 9. BRAND COMPLIANCE\n' +
+        '- WeChat Pay → Weixin Pay (for international readers)\n' +
+        '- WeChat Mini Program → Weixin Mini Program\n' +
+        '- Clarify "WeChat (known as Weixin in China)" in first mention if appropriate\n\n' +
+        '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
+        '## 10. OUTPUT\n' +
+        'Write the complete article with:\n' +
+        '- Clear H2 section headings\n' +
+        '- Bullet points for tips and practical advice\n' +
+        '- Note or Tip boxes for key clarifications\n' +
+        '- A clear Call-to-Action at the end\n\n' +
+        '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━';
+
+    // =============================================
+    // STEP 5: User-Friendly Preview
+    // =============================================
+    var userPreview = '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n【 YOUR TOPIC 】\n' + mainSubject + '\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n【 TITLE 】\n' + title + '\n\n【 AUDIENCE 】\n' + audienceDesc.split('.')[0] + '.\n\n【 TYPE 】\n' + typeInfo.name + '\n\n【 CORE MESSAGE 】\n' + coreMessage + '\n\n【 KEY FEATURES 】\n' + contentFocus.split('\n').slice(0, 6).join('\n') + '\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━';
+
+    return { outline: aiPrompt, title: title, preview: userPreview };
+}
+
+// ============================================================
+// INTELLIGENT TITLE GENERATOR
+// Smart pattern matching + dynamic composition for any topic
+// ============================================================
+
+// All known WeChat features (for semantic matching)
+var WECHAT_FEATURES = [
+    'red packet', 'hongbao', 'red envelope', 'mini program', '小程序',
+    'translation', 'translate', 'voice note', 'voice message', '语音',
+    'qr code', 'qr', '二维码', 'payment', 'pay', '支付', 'weixin pay',
+    'sticker', 'emoji', '表情', 'moment', '朋友圈', 'video call', '视频',
+    'group chat', '群聊', 'file transfer', '文件', 'location', '位置',
+    'shake', '摇一摇', '附近的人', 'nearby', '漂流瓶', 'bottle',
+    'public account', '公众号', 'scan', '扫一扫', 'wallet', '钱包',
+    'top-up', 'recharge', '充值', 'bank card', '银行卡', 'passkey',
+    'biometric', 'fingerprint', 'face id', '小程序码', 'live stream',
+    '直播', 'short video', '短视频', 'video', '小程序'
+];
+
+// Common use scenarios (for semantic matching)
+var USE_SCENARIOS = [
+    'travel', 'visitor', 'tourist', 'trip', '旅游', '来华',
+    'business', 'trade fair', 'fair', '展会', 'canton fair',
+    'student', 'study abroad', '留学',
+    'daily life', 'living in china', '居住',
+    'valentine', 'love', 'romantic', '情人节', '浪漫', 'wedding', '婚',
+    'birthday', '生日', 'new year', '春节', 'lunar new year',
+    'festival', 'holiday', '节日', 'gift', 'gift giving', '送礼',
+    'family', 'friend', 'parent', 'child', 'parenting',
+    'emergency', 'medical', 'hospital', '医院', 'doctor',
+    'shopping', 'market', 'mall',
+    'food', 'restaurant', 'dining', '美食', '外卖', 'delivery',
+    'transport', 'taxi', 'didi', 'metro', 'subway', '交通',
+    'communication', '联系', 'connect', 'connecting'
+];
+
+// Action verbs for title building
+var ACTION_TEMPLATES = [
+    'How to Use {feature} on WeChat',
+    '{feature} on WeChat: A Complete Guide',
+    'Everything About {feature} on WeChat',
+    'Mastering {feature} with WeChat',
+    '{feature}: The WeChat Guide',
+    'The Ultimate {feature} Guide for WeChat',
+    '{feature} on WeChat: What You Need to Know',
+    'Unlock {feature}: A WeChat How-To'
+];
+
+// Context modifiers based on scenarios
+var CONTEXT_MODIFIERS = {
+    'travel,visitor,tourist,trip': 'for International Visitors in China',
+    'travel,visitor,tourist,trip,visitor': 'for Travelers in China',
+    'business,trade fair,fair': 'for Business Travelers',
+    'student,study abroad': 'for International Students',
+    'daily life,living in china': 'for Daily Life in China',
+    'valentine,love,romantic': 'A Romantic Guide',
+    'wedding,wedding': 'for Wedding Celebrations',
+    'birthday': 'for Birthday Celebrations',
+    'new year,lunar new year,春节': 'for Chinese New Year',
+    'festival,holiday': 'for Holiday Celebrations',
+    'gift,gift giving': 'Gift-Giving Guide',
+    'family,friend,parent,child': 'for Family & Friends',
+    'emergency,medical,hospital': 'for Medical Situations',
+    'shopping,market,mall': 'for Shopping in China',
+    'food,restaurant,dining': 'for Food & Dining',
+    'transport,taxi,didi,metro,subway': 'for Getting Around'
+};
+
+function buildTitleFromUserInput(direction, features, purpose, seed) {
+    var d = direction.toLowerCase();
+    var originalDir = direction; // Keep original for fallback
+    
+    // =============================================
+    // STEP 1: EXTRACT CORE TOPIC (Feature + Scenario)
+    // =============================================
+    
+    // Find the MAIN WeChat feature in the input
+    var detectedFeature = null;
+    var featureScore = 0;
+    
+    for (var i = 0; i < WECHAT_FEATURES.length; i++) {
+        var feat = WECHAT_FEATURES[i];
+        // Check for exact match first
+        var pattern = new RegExp('\\b' + feat.replace(/\s+/g, '\\s*') + '\\b', 'gi');
+        if (pattern.test(d)) {
+            var score = feat.length; // Longer matches = higher score
+            if (score > featureScore) {
+                featureScore = score;
+                detectedFeature = feat;
+            }
+        }
+    }
+    
+    // Find the USE SCENARIO in the input
+    var detectedScenario = null;
+    var scenarioScore = 0;
+    
+    for (var j = 0; j < USE_SCENARIOS.length; j++) {
+        var scen = USE_SCENARIOS[j];
+        var pattern2 = new RegExp('\\b' + scen.replace(/\s+/g, '\\s*') + '\\b', 'gi');
+        if (pattern2.test(d)) {
+            var score2 = scen.length;
+            if (score2 > scenarioScore) {
+                scenarioScore = score2;
+                detectedScenario = scen;
+            }
+        }
+    }
+    
+    // =============================================
+    // STEP 2: Try SPECIFIC COMBINATIONS first
+    // These are high-quality pre-written titles (deterministic)
+    // =============================================
+    
+    var specificTitle = trySpecificCombinations(d, detectedFeature, detectedScenario);
+    if (specificTitle) return specificTitle;
+    
+    // =============================================
+    // STEP 3: DYNAMIC TITLE COMPOSITION
+    // Build title from detected feature + scenario
+    // =============================================
+    
+    if (detectedFeature || detectedScenario) {
+        return composeDynamicTitle(detectedFeature, detectedScenario, d, originalDir, seed);
+    }
+    
+    // =============================================
+    // STEP 4: ULTIMATE FALLBACK - Extract key concepts
+    // =============================================
+    
+    return extractTitleFromConcepts(d, originalDir);
+}
+
+// Try specific pre-written combinations
+function trySpecificCombinations(d, feature, scenario) {
+    // RED PACKET specific scenarios
+    if (/红包|red\s*envelope|red\s*packet|hongbao/i.test(d)) {
+        if (/valentine|love|520|I love you|浪漫|情人|couple|girlfriend|boyfriend|表白/i.test(d)) {
+            return 'Love in Digital Red: Sending Red Packets for Special Moments on WeChat';
+        }
+        if (/wedding|marri|婚/i.test(d)) {
+            return 'Digital Blessings: Red Packets for Wedding Celebrations on WeChat';
+        }
+        if (/spring|new\s*year|年|lunar|festival/i.test(d)) {
+            return 'Celebrate the New Year: Red Packets on WeChat Explained';
+        }
+        if (/birthday|生日/i.test(d)) {
+            return 'Happy Birthday, Digital Style: Red Packets on WeChat';
+        }
+        if (/family|parent|child|friend/i.test(d)) {
+            return 'Stay Connected: Red Packets for Family & Friends on WeChat';
+        }
+        // General red packet
+        return 'The Red Packet Tradition on WeChat: A Complete Guide';
+    }
+    
+    // 520 special number
+    if (/520/i.test(d)) {
+        if (/红包|red\s*envelope|red\s*packet/i.test(d)) {
+            return 'Love in Numbers: What 520 Means and How to Send Red Packets on WeChat';
+        }
+        return '520: The Most Romantic Number on WeChat Explained';
+    }
+    
+    // Mini Programs
+    if (/mini\s*program.*travel/i.test(d) || /travel.*mini\s*program/i.test(d)) {
+        return 'One App, Every Trip: WeChat Mini Programs for International Visitors';
+    }
+    if (/mini\s*program.*business/i.test(d) || /business.*mini\s*program/i.test(d)) {
+        return 'WeChat Mini Programs: Your Business Edge at Trade Fairs';
+    }
+    
+    // More combinations...
+    if (/weixin\s*pay.*international/i.test(d) || /wechat\s*pay.*international/i.test(d)) {
+        return 'Pay Like a Local: Weixin Pay for International Visitors';
+    }
+    if (/weixin\s*pay.*travel/i.test(d) || /wechat\s*pay.*travel/i.test(d)) {
+        return 'Pay Like a Local: Weixin Pay for Travelers in China';
+    }
+    if (/translation.*travel/i.test(d) || /travel.*translation/i.test(d)) {
+        return 'Beyond Language Barriers: WeChat Translation for Travelers in China';
+    }
+    if (/voice\s*note.*china/i.test(d) || /voice\s*note.*visitor/i.test(d)) {
+        return 'Send Voice Notes in China: WeChat\'s Audio Messaging Guide';
+    }
+    if (/voice\s*search.*wechat/i.test(d) || /wechat.*voice\s*search/i.test(d)) {
+        return 'Find Anything Fast: WeChat Voice Search Explained';
+    }
+    if (/qr\s*code.*travel/i.test(d) || /qr.*visitor/i.test(d)) {
+        return 'Scan Your Way Through China: QR Code Tips for Visitors';
+    }
+    if (/passkey.*login/i.test(d) || /passkey.*wechat/i.test(d)) {
+        return 'Log in with a Glance: WeChat Passkeys Made Easy';
+    }
+    if (/health\s*code/i.test(d)) {
+        return 'Your Digital Pass: Understanding WeChat Health Codes in China';
+    }
+    if (/file.*preview/i.test(d)) {
+        return 'Work Smarter: Preview Files on WeChat Before Downloading';
+    }
+    if (/booking.*train/i.test(d) || /train.*ticket/i.test(d)) {
+        return 'Book Train Tickets in China — Without Downloading a New App';
+    }
+    if (/food.*delivery/i.test(d) || /delivery.*china/i.test(d)) {
+        return 'Eat Like a Local: Food Delivery via WeChat Mini Programs';
+    }
+    if (/didi.*wechat/i.test(d) || /ride.*hailing.*china/i.test(d)) {
+        return 'Getting Around: Ride-Hailing with WeChat and Didi';
+    }
+    if (/safety.*wechat/i.test(d) || /scam.*wechat/i.test(d)) {
+        return 'Stay Safe on WeChat: Tips Every International User Should Know';
+    }
+    if (/business.*wechat/i.test(d) || /trade.*fair.*wechat/i.test(d)) {
+        return 'WeChat as Your Business Companion in China';
+    }
+    if (/moment.*status|朋友圈|status.*wechat/i.test(d)) {
+        return 'WeChat Moments: Share Your Life with Friends';
+    }
+    if (/group\s*chat|群聊|group/i.test(d)) {
+        return 'Mastering Group Chats on WeChat';
+    }
+    if (/shake|摇一摇/i.test(d)) {
+        return 'Meet New People: WeChat Shake Feature Explained';
+    }
+    if (/live\s*stream|直播/i.test(d)) {
+        return 'Watch and Create: WeChat Live Streaming Guide';
+    }
+    if (/public\s*account|公众号/i.test(d)) {
+        return 'Discover Content: WeChat Public Accounts Explained';
+    }
+    
+    return null; // No specific match
+}
+
+// Compose title dynamically from feature + scenario
+function composeDynamicTitle(feature, scenario, d, originalDir, seed) {
+    // Normalize feature name for display
+    var displayFeature = normalizeFeatureName(feature);
+    
+    // Determine context modifier
+    var contextMod = getContextModifier(scenario, d);
+    
+    // Determine action/style based on feature type (with randomization)
+    var titleStyle = getTitleStyle(feature, scenario, d, seed);
+    
+    // Build the title
+    var title = titleStyle
+        .replace('{feature}', displayFeature)
+        .replace('{context}', contextMod);
+    
+    return title;
+}
+
+// Normalize feature names for display
+function normalizeFeatureName(feature) {
+    var normalizations = {
+        'red packet': 'Red Packets',
+        'hongbao': 'Red Packets',
+        'red envelope': 'Red Packets',
+        'mini program': 'WeChat Mini Programs',
+        '小程序': 'WeChat Mini Programs',
+        'translation': 'WeChat Translation',
+        'voice note': 'Voice Notes',
+        'voice message': 'Voice Messages',
+        'qr code': 'QR Codes',
+        'qr': 'QR Codes',
+        '二维码': 'QR Codes',
+        'payment': 'WeChat Payment',
+        'weixin pay': 'Weixin Pay',
+        'sticker': 'Stickers',
+        'emoji': 'Emoji & Stickers',
+        'moment': 'WeChat Moments',
+        '朋友圈': 'WeChat Moments',
+        'video call': 'Video Calls',
+        'group chat': 'Group Chats',
+        '群聊': 'Group Chats',
+        'file transfer': 'File Transfer',
+        'shake': 'Shake',
+        '摇一摇': 'Shake',
+        'live stream': 'Live Streaming',
+        '直播': 'Live Streaming',
+        'public account': 'Public Accounts',
+        '公众号': 'Public Accounts',
+        'scan': 'QR Scanning',
+        '扫一扫': 'QR Scanning',
+        'top-up': 'Balance Top-up',
+        '充值': 'Balance Top-up',
+        'bank card': 'Bank Card Linking',
+        'passkey': 'Passkeys',
+        'biometric': 'Biometric Login',
+        'wallet': 'WeChat Wallet',
+        '钱包': 'WeChat Wallet'
+    };
+    
+    var lower = feature.toLowerCase();
+    return normalizations[lower] || capitalizeFirst(feature);
+}
+
+// Get context modifier based on scenario
+function getContextModifier(scenario, d) {
+    if (!scenario) return 'on WeChat';
+    
+    var visitor = /travel|visitor|tourist|trip|旅游|来华/i.test(d);
+    var business = /business|trade fair|fair|展会|商贸/i.test(d);
+    var student = /student|study abroad|留学/i.test(d);
+    var romantic = /valentine|love|romantic|情人节|浪漫/i.test(d);
+    var wedding = /wedding|婚/i.test(d);
+    var birthday = /birthday|生日/i.test(d);
+    var newyear = /new year|年|lunar|spring|春节/i.test(d);
+    var family = /family|parent|child|friend/i.test(d);
+    var transport = /transport|taxi|didi|metro|subway|交通/i.test(d);
+    var food = /food|restaurant|dining|美食|外卖/i.test(d);
+    var shopping = /shopping|market|mall|购物/i.test(d);
+    var medical = /emergency|medical|hospital|医院/i.test(d);
+    var festival = /festival|holiday|节日/i.test(d);
+    
+    if (visitor) return 'for International Visitors in China';
+    if (business) return 'for Business Travelers';
+    if (student) return 'for International Students';
+    if (romantic) return 'A Romantic Guide';
+    if (wedding) return 'for Wedding Celebrations';
+    if (birthday) return 'for Birthday Celebrations';
+    if (newyear) return 'for Chinese New Year';
+    if (family) return 'for Family & Friends';
+    if (transport) return 'for Getting Around China';
+    if (food) return 'for Food & Dining';
+    if (shopping) return 'for Shopping in China';
+    if (medical) return 'for Medical Situations';
+    if (festival) return 'for Holiday Celebrations';
+    
+    return 'on WeChat';
+}
+
+// Get title style based on feature and scenario (with randomization for regenerate)
+function getTitleStyle(feature, scenario, d, seed) {
+    // Check for "how to" questions
+    if (/how to|怎么|如何/i.test(d)) {
+        return '{context}: {feature}';
+    }
+    
+    // Check for "guide" intent
+    if (/guide|tutorial|learn|了解/i.test(d)) {
+        return '{feature}: {context}';
+    }
+    
+    // Check for "explain/understand" intent
+    if (/explain|understand|know|know about/i.test(d)) {
+        return '{feature} Explained: {context}';
+    }
+    
+    // Romantic/gift scenarios
+    if (/valentine|love|romantic|gift|情人节|浪漫|送礼/i.test(d)) {
+        return 'Love in Digital Red: {feature} for Special Moments';
+    }
+    
+    // Default styles based on scenario
+    if (scenario && /travel|visitor/i.test(d)) {
+        return '{feature}: {context}';
+    }
+    
+    // Randomized default styles for regeneration variety
+    var defaultStyles = [
+        '{feature}: {context}',
+        '{context} with {feature}',
+        '{feature} on WeChat',
+        'WeChat {feature}: {context}'
+    ];
+    
+    // Use seed to pick different style each time
+    if (seed) {
+        return defaultStyles[seed % defaultStyles.length];
+    }
+    
+    // Default fallback
+    return '{feature}: {context}';
+}
+
+// Ultimate fallback - extract concepts and build title
+function extractTitleFromConcepts(d, originalDir) {
+    // Extract all meaningful words (excluding stopwords)
+    var stopWords = /^(wechat|the|a|an|and|or|but|in|on|at|to|for|of|with|by|from|about|is|are|was|were|be|been|being|have|has|had|do|does|did|will|would|could|should|may|might|must|can|this|that|these|those|i|you|he|she|it|they|we|my|your|his|her|its|our|their|how|what|when|where|why|which|who|whom|whose|using|how to|how do|need|want|help|guide|every|each|all|some|many|much|about|want|like|for|with|send|give|use)$/i;
+    
+    // Split on spaces, commas, dashes, slashes, Chinese punctuation
+    var tokens = d.split(/[\s,\-\/—，。、？?！!]+/);
+    var words = [];
+    
+    for (var i = 0; i < tokens.length; i++) {
+        var token = tokens[i].replace(/[^\w\u4e00-\u9fa5]/g, '').trim();
+        if (token.length === 0) continue;
+        
+        // Keep Chinese characters always
+        if (/[\u4e00-\u9fa5]/.test(token)) {
+            words.push(token);
+        }
+        // Keep numbers (520, 1314, etc.)
+        else if (/^\d+$/.test(token)) {
+            words.push(token);
+        }
+        // Keep significant words
+        else if (token.length >= 3 && !stopWords.test(token)) {
+            words.push(token);
+        }
+    }
+    
+    // Build title from extracted words
+    if (words.length >= 2) {
+        // Use first 2-3 meaningful words
+        var keyWords = words.slice(0, 3).join(' ');
+        return capitalizeFirst(keyWords) + ' on WeChat: A Complete Guide';
+    }
+    
+    if (words.length === 1) {
+        return capitalizeFirst(words[0]) + ' on WeChat: Everything You Need to Know';
+    }
+    
+    // Last resort - use original direction
+    var shortDir = originalDir.substring(0, 40).trim();
+    return 'WeChat: ' + shortDir + (originalDir.length > 40 ? '...' : '');
+}
+
+function capitalizeFirst(str) {
+    return str.replace(/\b\w/g, function(l) { return l.toUpperCase(); });
+}
+
+function buildDynamicContentFocus(direction, features, scenarios, seed) {
+    var content = [];
+    
+    // Add content based on detected features
+    for (var i = 0; i < features.length; i++) {
+        var f = features[i];
+        switch(f) {
+            case 'Mini Programs':
+                content.push('- What are Mini Programs (apps within WeChat)');
+                content.push('- How to scan QR codes to access them');
+                content.push('- Popular categories: transport, food, services');
+                content.push('- No download needed — saves phone storage');
+                break;
+            case 'Translation':
+                content.push('- Built-in chat message translation');
+                content.push('- Camera/scan translation for signs and menus');
+                content.push('- Voice note transcription + translation');
+                content.push('- Tip: Set language to auto-detect');
+                break;
+            case 'Payment / Weixin Pay':
+                content.push('- Weixin Pay setup (international card)');
+                content.push('- Scanning to pay at merchants');
+                content.push('- Where it works (cities, merchants, transport)');
+                content.push('- Note: Set up before arrival for smoother experience');
+                break;
+            case 'Voice Notes':
+                content.push('- How to send voice messages');
+                content.push('- Benefits for breaking language barriers');
+                content.push('- Tips for clear voice recording');
+                break;
+            case 'Voice Search':
+                content.push('- How to use voice search');
+                content.push('- Searching in WeChat with your voice');
+                content.push('- Tip: Speak clearly for best results');
+                break;
+            case 'QR Code Scanning':
+                content.push('- Scanning QR codes to pay or access Mini Programs');
+                content.push('- Where you\'ll need QR codes in China');
+                content.push('- Safety tips: only scan codes you trust');
+                break;
+            case 'Security / Passkey':
+                content.push('- Setting up passkey / biometric login');
+                content.push('- Benefits: faster and more secure');
+                content.push('- Note: Available for iOS users first');
+                break;
+            case 'Health Code':
+                content.push('- What is the health code and why it matters');
+                content.push('- How to access and use it');
+                content.push('- Tips for smooth travel in China');
+                break;
+            case 'File Preview':
+                content.push('- Preview files before downloading');
+                content.push('- Supported formats (PDF, Word, images)');
+                content.push('- Save storage on your phone');
+                break;
+            case 'Booking / Reservations':
+                content.push('- Booking hotels, trains, tickets via Mini Programs');
+                content.push('- QR code check-in process');
+                content.push('- No need for separate apps');
+                break;
+            case 'Transport / Getting Around':
+                content.push('- Didi integration in WeChat');
+                content.push('- Metro and bus QR codes');
+                content.push('- Tips for getting around cities');
+                break;
+            case 'Food & Dining':
+                content.push('- Food delivery via Mini Programs');
+                content.push('- Scanning menus at restaurants');
+                content.push('- Mobile ordering tips');
+                break;
+            case 'Business / Trade Fair':
+                content.push('- QR code networking with suppliers');
+                content.push('- Chat translation for negotiations');
+                content.push('- Managing business contacts in WeChat');
+                break;
+            case 'Safety & Security':
+                content.push('- Account security settings');
+                content.push('- Managing friend requests');
+                content.push('- Recognising common scams');
+                break;
+            case 'Connecting with People':
+                content.push('- Adding friends via QR code');
+                content.push('- Privacy and contact settings');
+                content.push('- Safe connecting tips');
+                break;
+            case 'Stickers & Expressions':
+                content.push('- Using stickers in chat');
+                content.push('- Creating custom emoji');
+                content.push('- Cultural tips for sticker use');
+                break;
+            case 'Moments / Status':
+                content.push('- Posting to Moments');
+                content.push('- Privacy settings');
+                content.push('- What to share as a visitor');
+                break;
+            case 'Voice & Video Calls':
+                content.push('- Making voice and video calls');
+                content.push('- Mini window (floating) mode');
+                content.push('- Ignoring unwanted calls gracefully');
+                break;
+            case 'Digital Wallet':
+                content.push('- Linking international cards');
+                content.push('- Digital wallet alternatives');
+                content.push('- Weixin Pay overview');
+                break;
+        }
+    }
+    
+    // If no specific features, add general content
+    if (content.length === 0) {
+        content.push('- Feature introduction');
+        content.push('- How it works');
+        content.push('- Practical use cases');
+        content.push('- Tips for international users');
+    }
+    
+    // Add scenario-specific content if any
+    if (scenarios.length > 0) {
+        content.push('- Scenario: ' + scenarios[0]);
+    }
+    
+    // Use seed to shuffle content order for variety on regenerate
+    if (seed !== undefined && seed !== null && content.length > 1) {
+        var s = seed;
+        for (var i = content.length - 1; i > 0; i--) {
+            s = (s * 1103515245 + 12345) & 0x7fffffff;
+            var j = s % (i + 1);
+            var temp = content[i];
+            content[i] = content[j];
+            content[j] = temp;
+        }
+    }
+    
+    return content.join('\n');
+}
+
+// Legacy functions removed - replaced by INTELLIGENT TITLE GENERATOR
+
+async function runWorkflow() {
+    if (state.isRunning) { showToast('⏳ Already running, please wait...'); return; }
+
+    var direction = document.getElementById('inputDirection').value.trim();
+    if (!direction) { alert('Please enter a topic direction first.'); return; }
+
+    state.isRunning = true;
+    var btn = document.getElementById('btnRun');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Generating...'; }
+
+    state.direction = direction;
+    state.audience = document.getElementById('inputAudience').value;
+    state.type = document.getElementById('inputType').value;
+    resetStages();
+
+    var audienceMap = {
+        visitor: 'International travelers and visitors to China',
+        business: 'Business travelers / trade fair attendees',
+        student: 'International students in China',
+        general: 'General WeChat users'
+    };
+    var typeMap = {
+        feature: 'Feature Introduction article',
+        guide: 'How-to Guide with step-by-step instructions',
+        tips: 'Tips & Tricks list',
+        story: 'Scene-driven story'
+    };
+    var audienceDesc = audienceMap[state.audience] || 'General WeChat users';
+    var typeDesc = typeMap[state.type] || 'WeChat Newsroom article';
+
+    var systemPrompt = 'You are Topic虾, a WeChat Newsroom content strategist. You create structured English writing outlines for WeChat official account articles. Be concise, practical, and focused on real user value.';
+    var userPrompt = 'Create a structured writing outline for a WeChat Newsroom article.\n\nTopic: ' + direction + '\nTarget Audience: ' + audienceDesc + '\nArticle Type: ' + typeDesc + '\n\nOutput format:\n【 TITLE 】\n(A compelling English article title)\n\n【 CORE MESSAGE 】\n(One sentence: the key takeaway)\n\n【 TARGET READER 】\n(Who is this for and what problem does it solve)\n\n【 STRUCTURE 】\nIntro: (hook + context, 1-2 sentences)\nSection 1: (heading + 2-3 bullet points)\nSection 2: (heading + 2-3 bullet points)\nSection 3: (heading + 2-3 bullet points)\nConclusion: (CTA + closing thought)\n\n【 TONE & STYLE 】\n(Tone, writing style, key language notes)\n\n【 BRAND NOTES 】\n(WeChat-specific terminology reminders: e.g. "Weixin Pay" not "WeChat Pay")';
+
+    var outlineEl = document.getElementById('outlineOutput');
+    outlineEl.value = '';
+    outlineEl.placeholder = '🤖 AI is generating your outline...';
+    showStage('stage1');
+
+    var badge1 = document.querySelector('#stage1 .status-badge');
+    if (badge1) { badge1.textContent = '⏳ Generating...'; badge1.className = 'status-badge active'; }
+
+    await streamClaude(systemPrompt, userPrompt,
+        function(chunk, full) {
+            outlineEl.value = full;
+            // Extract title from output
+            var titleMatch = full.match(/【 TITLE 】\s*\n(.*)/);
+            if (titleMatch) state.title = titleMatch[1].trim();
+        },
+        function(full) {
+            state.outline = full;
+            outlineEl.placeholder = '';
+            if (badge1) { badge1.textContent = 'Generated'; badge1.className = 'status-badge passed'; }
+            state.isRunning = false;
+            if (btn) { btn.disabled = false; btn.textContent = '▶ Run Pipeline'; }
+            showToast('✅ Outline generated by AI!');
+        },
+        function(err) {
+            console.error('Outline AI error:', err);
+            // Show the actual error prominently in the textarea
+            var errMsg = err && err.message ? err.message : String(err);
+            outlineEl.value = '❌ API Error — outline could not be generated.\n\n' +
+                'Error details:\n' + errMsg + '\n\n' +
+                '── Troubleshooting ──\n' +
+                '• Check your API key is correct and active\n' +
+                '• Gemini key should start with "AIza..."\n' +
+                '• Anthropic key should start with "sk-ant-..."\n' +
+                '• Make sure you clicked "Connect" after pasting the key\n' +
+                '• Check your browser console (F12) for more details';
+            outlineEl.placeholder = '';
+            if (badge1) { badge1.textContent = '❌ API Error'; badge1.className = 'status-badge draft'; }
+            state.isRunning = false;
+            if (btn) { btn.disabled = false; btn.textContent = '▶ Run Pipeline'; }
+        }
+    );
+}
+
+// ============================================================
+// STAGE 2: PASTE & CONFIRM DRAFT
+// ============================================================
+function showPasteInterface() {
+    document.getElementById('stage1').style.display = 'none';
+    document.getElementById('stage2').style.display = 'block';
+    document.getElementById('stage2Done').style.display = 'none';
+    // Show outline preview in stage2 for reference
+    var displayText = state.outline || state.aiPrompt || '';
+    document.getElementById('outlineRecall').textContent = displayText;
+    showStage('stage2');
+}
+
+async function confirmDraft() {
+    var draft = document.getElementById('draftInput').value.trim();
+    if (!draft || draft.length < 100) {
+        alert('Please paste your full article (minimum ~100 characters).');
+        return;
+    }
+
+    state.draft = draft;
+    document.getElementById('draftOutput').textContent = draft;
+
+    document.getElementById('stage2').style.display = 'none';
+    document.getElementById('stage2Done').style.display = 'block';
+
+    var badge = document.querySelector('#stage2Done .status-badge');
+    if (badge) { badge.textContent = '✓ Ready for Review'; badge.className = 'status-badge passed'; }
+    showStage('stage2Done');
+}
+
+function editDraft() {
+    document.getElementById('draftInput').value = state.draft;
+    document.getElementById('stage2').style.display = 'block';
+    document.getElementById('stage2Done').style.display = 'none';
+    document.getElementById('outlineRecall').textContent = state.outline;
+    document.getElementById('draftInput').focus();
+}
+
+function clearDraft() {
+    if (confirm('Clear the draft?')) {
+        document.getElementById('draftInput').value = '';
+        state.draft = '';
+    }
+}
+
+// ============================================================
+// STAGE 3: REVIEW
+// ============================================================
+function generateReview() {
+    // Get draft from state or directly from the displayed output
+    var draft = state.draft || '';
+    // Fallback: if state.draft is empty, try to get from draftOutput element
+    if (!draft) {
+        var draftEl = document.getElementById('draftOutput');
+        if (draftEl) draft = draftEl.textContent || '';
+    }
+    // Fallback 2: try from finalOutput
+    if (!draft) {
+        var finalEl = document.getElementById('finalOutput');
+        if (finalEl) draft = finalEl.textContent || '';
+    }
+    
+    if (!draft || draft.length < 50) {
+        return '<p style="color:#c0392b;padding:20px;">⚠️ No article content found. Please paste or generate an article first.</p>';
+    }
+    
+    var results = [];
+
+    // =============================================
+    // CHECK 1: WORD COUNT
+    // =============================================
+    var wordCount = draft.split(/\s+/).filter(function(w) { return w.length > 0; }).length;
+    if (wordCount > 600) {
+        var diff = wordCount - 600;
+        results.push({ type: 'warn', label: 'Word Count', msg: wordCount + ' words — ' + diff + ' over target. Consider trimming to ~600 words for WeChat readability.' });
+    } else if (wordCount < 300) {
+        results.push({ type: 'warn', label: 'Word Count', msg: wordCount + ' words — article may be too short. Aim for ~430-600 words for WeChat articles.' });
+    } else {
+        results.push({ type: 'pass', label: 'Word Count', msg: wordCount + ' words — within target range.' });
+    }
+
+    // =============================================
+    // CHECK 2: BRAND — WeChat Pay vs Weixin Pay
+    // =============================================
+    var wrongPayMatches = [];
+    var payRe = /WeChat Pay/gi;
+    var m;
+    while ((m = payRe.exec(draft)) !== null) { wrongPayMatches.push(m[0]); }
+    if (wrongPayMatches.length > 0) {
+        results.push({ type: 'p0', label: 'Brand: Weixin Pay', msg: '"WeChat Pay" found ' + wrongPayMatches.length + ' time(s). For international readers, use "Weixin Pay" (or "WeChat Pay" only when quoting domestic Chinese context).' });
+    } else {
+        results.push({ type: 'pass', label: 'Brand: Weixin Pay', msg: 'No "WeChat Pay" errors detected.' });
+    }
+
+    // =============================================
+    // CHECK 3: BRAND — WeChat Program vs Weixin Mini Program
+    // =============================================
+    var wrongProgramMatches = [];
+    var progRe = /WeChat (?!Mini\s)[Pp]rogram/gi;
+    var m2;
+    while ((m2 = progRe.exec(draft)) !== null) { wrongProgramMatches.push(m2[0]); }
+    if (wrongProgramMatches.length > 0) {
+        results.push({ type: 'p0', label: 'Brand: Weixin Mini Program', msg: '"WeChat Program" found ' + wrongProgramMatches.length + ' time(s). Use "Weixin Mini Program" for international audiences.' });
+    } else {
+        results.push({ type: 'pass', label: 'Brand: Weixin Mini Program', msg: 'No "WeChat Program" errors detected.' });
+    }
+
+    // =============================================
+    // CHECK 4: WeChat vs Weixin intro clarity
+    // =============================================
+    var hasWeixin = /Weixin/gi.test(draft);
+    var hasWeChat = /WeChat/gi.test(draft);
+    if (!hasWeixin && hasWeChat) {
+        results.push({ type: 'info', label: 'Brand: WeChat / Weixin', msg: 'Consider briefly clarifying "WeChat (known as Weixin in China)" in the intro for international readers.' });
+    } else if (hasWeixin) {
+        results.push({ type: 'pass', label: 'Brand: WeChat / Weixin', msg: 'Correctly uses "Weixin" for the Chinese product name.' });
+    }
+
+    // =============================================
+    // CHECK 5: Bullet points
+    // =============================================
+    var hasBullets = /^[-•●*]\s/m.test(draft);
+    if (!hasBullets) {
+        results.push({ type: 'warn', label: 'Bullet Points', msg: 'No bullet points found. WeChat Newsroom articles typically use bullet lists for practical tips.' });
+    } else {
+        results.push({ type: 'pass', label: 'Bullet Points', msg: 'Bullet points present — good for scannability.' });
+    }
+
+    // =============================================
+    // CHECK 6: H2 Headings Structure
+    // =============================================
+    var h2Count = (draft.match(/^##\s+/gm) || []).length;
+    if (h2Count === 0) {
+        results.push({ type: 'warn', label: 'Section Headings', msg: 'No H2 headings found. Articles should have clear section breaks with "## " headings.' });
+    } else if (h2Count < 3) {
+        results.push({ type: 'warn', label: 'Section Headings', msg: 'Only ' + h2Count + ' H2 heading(s) found. Consider adding more sections for better structure (aim for 5-7 sections).' });
+    } else {
+        results.push({ type: 'pass', label: 'Section Headings', msg: h2Count + ' H2 headings found — good structure.' });
+    }
+
+    // =============================================
+    // CHECK 7: Call to Action (CTA)
+    // =============================================
+    var hasCTA = /(get started|try it|today|now|download|sign up|set up|create|start|begin|try)/i.test(draft);
+    if (!hasCTA) {
+        results.push({ type: 'warn', label: 'Call to Action', msg: 'No clear call-to-action found. Consider adding a closing CTA to guide readers.' });
+    } else {
+        results.push({ type: 'pass', label: 'Call to Action', msg: 'CTA detected — good for engagement.' });
+    }
+
+    // =============================================
+    // CHECK 8: Note/Tip/Tips Box
+    // =============================================
+    var hasNote = /(Note:|Tip:|Tips:|Note -|Tip -)/i.test(draft);
+    if (!hasNote) {
+        results.push({ type: 'info', label: 'Note/Tip Box', msg: 'No Note or Tip boxes found. Consider adding 1-2 for helpful clarifications.' });
+    } else {
+        results.push({ type: 'pass', label: 'Note/Tip Box', msg: 'Note/Tip boxes present — adds value for readers.' });
+    }
+
+    // =============================================
+    // CHECK 9: Opening Style
+    // =============================================
+    var firstParagraph = draft.replace(/^#.*\n/, '').replace(/^##.*\n/, '').trim();
+    var startsWithQuestion = /^(Have you|Do you|Wondering|Imagine|Whether)/i.test(firstParagraph);
+    var startsWithScenario = /^(You've|Your|When|If|After|Before)/i.test(firstParagraph);
+    var startsWithWeChat = /^WeChat is|^WeChat will|^WeChat can/i.test(firstParagraph);
+    
+    if (startsWithQuestion || startsWithScenario) {
+        results.push({ type: 'pass', label: 'Opening Style', msg: 'Good opening — engaging scenario or question that hooks readers.' });
+    } else if (startsWithWeChat) {
+        results.push({ type: 'info', label: 'Opening Style', msg: 'Consider starting with a reader scenario or question instead of a brand statement.' });
+    } else {
+        results.push({ type: 'info', label: 'Opening Style', msg: 'Check if the opening effectively hooks international readers.' });
+    }
+
+    // =============================================
+    // RENDER
+    // =============================================
+    var html = '<ul class="checklist">';
+    results.forEach(function(r) {
+        var icon = r.type === 'pass' ? 'ok' : (r.type === 'info' ? 'ok' : (r.type === 'warn' ? 'warn' : 'p0'));
+        var iconText = icon === 'ok' ? '✓' : (icon === 'warn' ? '!' : '✗');
+        html += '<li>' +
+            '<div class="check-icon ' + icon + '">' + iconText + '</div>' +
+            '<div><strong>' + r.label + '</strong>' +
+            '<div style="color:' + (r.type === 'pass' || r.type === 'info' ? '#555' : '#c0392b') + ';font-size:13px;margin-top:2px">' + r.msg + '</div>' +
+            '</div></li>';
+    });
+    html += '</ul>';
+
+    var p0Count = results.filter(function(r) { return r.type === 'p0'; }).length;
+    var warnCount = results.filter(function(r) { return r.type === 'warn'; }).length;
+
+    var summaryColor = p0Count > 0 ? '#c0392b' : (warnCount > 0 ? '#e67e22' : '#27ae60');
+    var summaryText = p0Count > 0 ? '⚠ ' + p0Count + ' brand issue(s) found — please fix before publishing' : (warnCount > 0 ? '✅ No brand errors — ' + warnCount + ' suggestion(s) to review' : '✅ All checks passed.');
+    html += '<p style="font-size:13px;color:' + summaryColor + ';margin-top:16px;padding-top:16px;border-top:1px solid var(--border);font-weight:600;">' + summaryText + '</p>';
+
+    return html;
+}
+
+async function submitReview() {
+    if (!state.draft) { alert('No draft found. Paste your article first.'); return; }
+    // Simulate running the review
+    document.getElementById('reviewOutput').innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-light);font-size:14px;">⚡ Running six-dimension review...</div>';
+    showStage('stage3');
+    try { await sleep(800); } catch(e) { /* ignore */ }
+    var html = generateReview();
+    document.getElementById('reviewOutput').innerHTML = html;
+
+    // Show AI Deep Review section
+    document.getElementById('aiReviewSection').style.display = 'block';
+
+    // Update badge based on review result
+    var badge3 = document.querySelector('#stage3 .status-badge');
+    if (badge3) {
+        if (/P0 issues found/.test(html)) {
+            badge3.textContent = '⚠️ Issues Found';
+            badge3.className = 'status-badge draft';
+        } else if (/warning/.test(html)) {
+            badge3.textContent = '✓ Passed (with warnings)';
+            badge3.className = 'status-badge active';
+        } else {
+            badge3.textContent = '✓ All Passed';
+            badge3.className = 'status-badge passed';
+        }
+    }
+}
+
+// ============================================================
+// STAGE 4: FINALIZE
+// ============================================================
+function approveAndFinalize() {
+    // Save to history
+    var historyItem = {
+        id: Date.now().toString(),
+        title: state.title || 'Untitled',
+        direction: state.direction,
+        audience: state.audience,
+        type: state.type,
+        draft: state.draft,
+        savedAt: new Date().toISOString()
+    };
+    addToHistory(historyItem);
+    renderHistoryList();
+
+    document.getElementById('finalOutput').textContent = state.draft;
+    showStage('stage4');
+    showToast('🎉 Saved to history!');
+}
+
+// ============================================================
+// REVISION
+// ============================================================
+function askRevision(stage) {
+    var msg = stage === 'outline'
+        ? 'What adjustments do you want for the outline?'
+        : 'What adjustments do you want for the article?';
+    var notes = prompt(msg);
+    if (!notes) return;
+    alert('Revision note: "' + notes + '"\n\n(In production, Copy虾 will regenerate based on your feedback.)');
+}
+
+function triggerRevision() {
+    var notes = prompt('What issues need to be fixed?');
+    if (!notes) return;
+    alert('Review虾 has logged issues: "' + notes + '"');
+}
+
+// ============================================================
+// COPY & RESET
+// ============================================================
+function copyFinal() {
+    var text = document.getElementById('finalOutput').textContent;
+    copyToClipboard(text);
+}
+
+function exportAsHTML() {
+    var article = document.getElementById('finalOutput').textContent;
+    if (!article || article.trim().length < 10) {
+        showToast('⚠️ No final article to export');
+        return;
+    }
+
+    // Get article title from outline or use default
+    var titleMatch = article.match(/^#\s+(.+)/m);
+    var articleTitle = titleMatch ? titleMatch[1].trim() : 'WeChat Newsroom Article';
+    var today = new Date().toISOString().split('T')[0];
+
+    var htmlContent = '<!DOCTYPE html>\n' +
+'<html lang="en">\n' +
+'<head>\n' +
+'    <meta charset="UTF-8">\n' +
+'    <meta name="viewport" content="width=device-width, initial-scale=1.0">\n' +
+'    <title>' + escapeHtml(articleTitle) + '</title>\n' +
+'    <style>\n' +
+'        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; max-width: 720px; margin: 0 auto; padding: 40px 20px; line-height: 1.7; color: #1a1a1a; }\n' +
+'        h1 { font-size: 24px; margin-bottom: 8px; }\n' +
+'        .meta { font-size: 13px; color: #666; margin-bottom: 32px; }\n' +
+'        h2 { font-size: 18px; margin-top: 36px; margin-bottom: 12px; border-bottom: 2px solid #07C160; padding-bottom: 6px; }\n' +
+'        p { margin: 0 0 16px; }\n' +
+'        ul { padding-left: 24px; }\n' +
+'        li { margin-bottom: 8px; }\n' +
+'        .tip-box { background: #f0f9f0; border-left: 4px solid #07C160; padding: 12px 16px; margin: 20px 0; border-radius: 0 8px 8px 0; }\n' +
+'        .tip-box strong { color: #07C160; }\n' +
+'        .note-box { background: #fff8e6; border-left: 4px solid #ffc107; padding: 12px 16px; margin: 20px 0; border-radius: 0 8px 8px 0; }\n' +
+'        .note-box strong { color: #e6a200; }\n' +
+'        .cta-box { background: #f5f5f5; border-radius: 12px; padding: 20px 24px; margin-top: 32px; }\n' +
+'        .cta-box h3 { margin-top: 0; font-size: 16px; }\n' +
+'        .cta-box ul { margin: 0; padding-left: 20px; }\n' +
+'        .cta-box li { margin-bottom: 6px; }\n' +
+'        .copy-hint { font-size: 12px; color: #999; margin-top: 32px; text-align: center; }\n' +
+'    </style>\n' +
+'</head>\n' +
+'<body>\n' +
+'    <h1>' + escapeHtml(articleTitle) + '</h1>\n' +
+'    <p class="meta">WeChat Newsroom &middot; ' + today + '</p>\n' +
+'    <div id="article-body"></div>\n' +
+'    <p class="copy-hint">Generated via WeChat Newsroom AI Writing Workflow</p>\n' +
+'    <script>\n' +
+'        var raw = ' + JSON.stringify(article) + ';\n' +
+'        var body = document.getElementById("article-body");\n' +
+'        var lines = raw.split("\\n");\n' +
+'        var inList = false;\n' +
+'        var ul = null;\n' +
+'        for (var i = 0; i < lines.length; i++) {\n' +
+'            var line = lines[i].trim();\n' +
+'            if (!line) { if (inList) { body.appendChild(ul); ul = null; inList = false; } continue; }\n' +
+'            if (line.startsWith("# ")) {\n' +
+'                if (inList) { body.appendChild(ul); ul = null; inList = false; }\n' +
+'                var h1 = document.createElement("h1"); h1.textContent = line.substring(2); body.appendChild(h1);\n' +
+'            } else if (line.startsWith("## ")) {\n' +
+'                if (inList) { body.appendChild(ul); ul = null; inList = false; }\n' +
+'                var h2 = document.createElement("h2"); h2.textContent = line.substring(3); body.appendChild(h2);\n' +
+'            } else if (line.startsWith("**") && line.endsWith("**")) {\n' +
+'                if (inList) { body.appendChild(ul); ul = null; inList = false; }\n' +
+'                var p = document.createElement("p"); var b = document.createElement("strong"); b.textContent = line.slice(2,-2); p.appendChild(b); body.appendChild(p);\n' +
+'            } else if (line.startsWith("*") || line.startsWith("-") || line.startsWith("●")) {\n' +
+'                if (!inList) { ul = document.createElement("ul"); inList = true; }\n' +
+'                var li = document.createElement("li"); li.textContent = line.replace(/^[*\\-\u25CF]\\s*/, ""); ul.appendChild(li);\n' +
+'            } else if (line.startsWith("Tip:") || line.startsWith("Tip ") || line.startsWith("Tips:")) {\n' +
+'                if (inList) { body.appendChild(ul); ul = null; inList = false; }\n' +
+'                var tip = document.createElement("div"); tip.className = "tip-box";\n' +
+'                tip.innerHTML = "<strong>\u2728 Tip:</strong> " + escapeHtml(line.replace(/^(Tip:|Tip |Tips:)\\s*/, "")); body.appendChild(tip);\n' +
+'            } else if (line.startsWith("Note:") || line.startsWith("Note ")) {\n' +
+'                if (inList) { body.appendChild(ul); ul = null; inList = false; }\n' +
+'                var note = document.createElement("div"); note.className = "note-box";\n' +
+'                note.innerHTML = "<strong>\u2139 Note:</strong> " + escapeHtml(line.replace(/^(Note:|Note )\\s*/, "")); body.appendChild(note);\n' +
+'            } else {\n' +
+'                if (inList) { body.appendChild(ul); ul = null; inList = false; }\n' +
+'                var p = document.createElement("p"); p.textContent = line.replace(/\\*\\*(.+?)\\*\\*/g, "$1"); body.appendChild(p);\n' +
+'            }\n' +
+'        }\n' +
+'        if (inList) body.appendChild(ul);\n' +
+'        function escapeHtml(t) { return t.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }\n' +
+'    <\/script>\n' +
+'</body>\n' +
+'</html>';
+
+    var blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    var filename = articleTitle.replace(/[^a-zA-Z0-9\u4e00-\u9fa5\\s]/g, '').replace(/\s+/g, '-').substring(0, 50);
+    a.download = (filename || 'wechat-article') + '.html';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('✅ HTML file downloaded!');
+}
+
+function resetAll() {
+    resetStages();
+    // Clear all inline display overrides so CSS takes over (display:none by default)
+    ['stage1','stage2','stage2Done','stage3','stage4'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.style.display = '';
+    });
+    // Clear all input fields
+    document.getElementById('inputDirection').value = '';
+    document.getElementById('inputAudience').value = '';
+    document.getElementById('inputType').value = '';
+    document.getElementById('draftInput').value = '';
+    document.getElementById('outlineOutput').value = '';
+    // Clear outline recall areas in Stage 2 and Stage 2Done
+    document.getElementById('outlineRecall').textContent = '';
+    document.getElementById('outlineRecall2').textContent = '';
+    // Reset View Outline buttons to default state
+    document.getElementById('btnShowOutline').textContent = '📋 View Topic虾 Outline';
+    document.getElementById('btnShowOutline2').textContent = '📋 View Topic虾 Outline';
+    document.getElementById('outlineRecall').style.display = 'none';
+    document.getElementById('outlineRecall2').style.display = 'none';
+    // Reset state
+    state = { direction:'', audience:'', type:'', outline:'', title:'', draft:'', isRunning:false, currentHistoryId:null };
+    lastSeenContent = '';
+    document.getElementById('draftOutput').textContent = '';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    showToast('🆕 Ready for a new topic');
+}
+
+function loadSample() {
+    document.getElementById('inputDirection').value = 'WeChat Mini Programs helping international travelers in China — covering translation, payments, bookings, and transport in one place.';
+    document.getElementById('inputAudience').value = 'visitor';
+    document.getElementById('inputType').value = 'guide';
+}
+
+// ============================================================
+// STAGE 2: AI AUTO-WRITE DRAFT
+// ============================================================
+async function aiWriteDraft() {
+    var outline = document.getElementById('outlineOutput').value.trim() || state.outline;
+    if (!outline) { alert('Please generate an outline first (Stage 1).'); return; }
+
+    var btn = document.getElementById('btnAIWrite');
+    var statusEl = document.getElementById('aiWriteStatus');
+    var draftInput = document.getElementById('draftInput');
+
+    btn.disabled = true;
+    btn.textContent = '⏳ Writing...';
+    statusEl.style.display = 'block';
+    statusEl.textContent = '🤖 Claude is writing your article...';
+    draftInput.value = '';
+
+    var audienceMap = {
+        visitor: 'International travelers and visitors in China',
+        business: 'Business travelers / trade fair attendees',
+        student: 'International students in China',
+        general: 'General WeChat users'
+    };
+    var audienceDesc = audienceMap[state.audience] || 'General WeChat users';
+
+    var systemPrompt = 'You are Copy虾, an expert WeChat Newsroom article writer. You write clear, engaging English articles for WeChat\'s official international account. Your writing is:\n- Natural and friendly, never corporate or stiff\n- Practical and actionable\n- 430-600 words total\n- Uses "Weixin Pay" NOT "WeChat Pay"\n- Uses "Weixin Mini Programs" or "Mini Programs" NOT "WeChat Programs"\n- Has a clear intro hook, structured sections with H2 headings, and a CTA conclusion\n- No AI filler phrases like "In today\'s digital age", "In conclusion", "Dive into", "Leverage"\n- No excessive exclamation marks';
+
+    var userPrompt = 'Write a complete WeChat Newsroom article based on this outline:\n\n' + outline + '\n\nTarget audience: ' + audienceDesc + '\n\nWrite the FULL ARTICLE now. Start directly with the article title as the first line, then the body. Do not include any preamble or meta-commentary.';
+
+    await streamClaude(systemPrompt, userPrompt,
+        function(chunk, full) {
+            draftInput.value = full;
+            var wordCount = full.split(/\s+/).filter(function(w){ return w.length > 0; }).length;
+            statusEl.textContent = '✍️ Writing... ' + wordCount + ' words';
+        },
+        function(full) {
+            state.draft = full;
+            // Extract title from first line
+            var firstLine = full.split('\n')[0].trim();
+            if (firstLine && firstLine.length < 120) { state.title = firstLine; }
+            btn.disabled = false;
+            btn.textContent = '✨ Write Draft with AI';
+            statusEl.textContent = '✅ Draft ready! Review it below, then confirm.';
+            showToast('✅ AI draft complete!');
+        },
+        function(err) {
+            console.error('AI write error:', err);
+            btn.disabled = false;
+            btn.textContent = '✨ Write Draft with AI';
+            statusEl.textContent = '⚠️ AI unavailable. Please paste your draft manually.';
+            showToast('⚠️ AI write failed — please paste manually');
+        }
+    );
+}
+
+// ============================================================
+// STAGE 3: AI DEEP REVIEW
+// ============================================================
+async function aiDeepReview() {
+    var draft = state.draft || document.getElementById('draftOutput').textContent;
+    if (!draft || draft.length < 50) { showToast('⚠️ No draft found'); return; }
+
+    var btn = document.getElementById('btnAIReview');
+    var outputEl = document.getElementById('aiReviewOutput');
+    btn.disabled = true;
+    btn.textContent = '⏳ Reviewing...';
+    outputEl.textContent = '';
+
+    var systemPrompt = 'You are Review虾, a senior WeChat Newsroom editor. Review articles concisely and constructively. Focus on actionable feedback only.';
+    var userPrompt = 'Review this WeChat Newsroom article and give concise feedback on:\n1. ✏️ Grammar & natural English (flag any Chinglish)\n2. 🎯 Brand voice (should feel warm, practical, not corporate)\n3. ⚡ AI fluff phrases (list any found)\n4. 📏 Structure & readability\n5. ✅ Overall verdict: Ready to publish / Needs minor edits / Needs major revision\n\nKeep your review under 200 words. Be specific.\n\nARTICLE:\n' + draft;
+
+    await streamClaude(systemPrompt, userPrompt,
+        function(chunk, full) { outputEl.textContent = full; },
+        function(full) {
+            btn.disabled = false;
+            btn.textContent = '✨ Get AI Deep Review';
+            showToast('✅ AI review complete');
+        },
+        function(err) {
+            btn.disabled = false;
+            btn.textContent = '✨ Get AI Deep Review';
+            outputEl.textContent = '⚠️ AI review unavailable.';
+        }
+    );
+}
+
+// ============================================================
+// EVENT LISTENERS
+// ============================================================
+document.getElementById('btnRun').onclick = runWorkflow;
+document.getElementById('btnLoadSample').onclick = loadSample;
+document.getElementById('btnAIWrite').onclick = aiWriteDraft;
+document.getElementById('btnAIReview').onclick = aiDeepReview;
+document.getElementById('btnConfirmOutline').onclick = function() {
+    var editedOutline = document.getElementById('outlineOutput').value.trim();
+    if (editedOutline) { state.outline = editedOutline; }
+    showPasteInterface();
+};
+document.getElementById('btnRevOutline').onclick = async function() {
+    var direction = document.getElementById('inputDirection').value.trim();
+    if (!direction) { alert('Please enter a topic direction first.'); return; }
+
+    var btn = this;
+    btn.disabled = true;
+    btn.textContent = '⏳ Regenerating...';
+    var outlineEl = document.getElementById('outlineOutput');
+    outlineEl.value = '';
+    outlineEl.placeholder = '🤖 AI is regenerating outline...';
+    document.getElementById('outlineRecall').textContent = '';
+    document.getElementById('outlineRecall2').textContent = '';
+
+    var audienceMap = { visitor: 'International travelers in China', business: 'Business travelers', student: 'International students in China', general: 'General WeChat users' };
+    var typeMap = { feature: 'Feature Introduction', guide: 'How-to Guide', tips: 'Tips & Tricks', story: 'Scene-driven story' };
+    var systemPrompt = 'You are Topic虾, a WeChat Newsroom content strategist. Generate a DIFFERENT, fresh outline — vary the angle, structure, or emphasis.';
+    var userPrompt = 'Create a DIFFERENT structured writing outline for:\nTopic: ' + direction + '\nAudience: ' + (audienceMap[state.audience] || 'General') + '\nType: ' + (typeMap[state.type] || 'Article') + '\n\nUse the same format:\n【 TITLE 】\n【 CORE MESSAGE 】\n【 TARGET READER 】\n【 STRUCTURE 】\n【 TONE & STYLE 】\n【 BRAND NOTES 】\n\nMake this outline distinct from any previous one — try a different angle.';
+
+    await streamClaude(systemPrompt, userPrompt,
+        function(chunk, full) { outlineEl.value = full; },
+        function(full) {
+            state.outline = full;
+            outlineEl.placeholder = '';
+            var badge = document.querySelector('#stage1 .status-badge');
+            if (badge) { badge.textContent = 'Regenerated'; badge.className = 'status-badge passed'; }
+            btn.disabled = false;
+            btn.textContent = '🔄 Regenerate';
+            showToast('✅ New outline generated!');
+        },
+        function(err) {
+            var errMsg = err && err.message ? err.message : String(err);
+            outlineEl.value = '❌ API Error: ' + errMsg + '\n\nPlease check your API key in the banner above.';
+            outlineEl.placeholder = '';
+            btn.disabled = false;
+            btn.textContent = '🔄 Regenerate';
+            showToast('❌ API error — see details in the outline box');
+        }
+    );
+};
+document.getElementById('btnConfirmDraft').onclick = confirmDraft;
+document.getElementById('btnClearDraft').onclick = clearDraft;
+document.getElementById('btnEditDraft').onclick = editDraft;
+document.getElementById('btnShowOutline').onclick = function() {
+    var el = document.getElementById('outlineRecall');
+    if (el.style.display === 'none') {
+        el.style.display = 'block';
+        document.getElementById('btnShowOutline').textContent = '📋 Hide Topic虾 Outline';
+    } else {
+        el.style.display = 'none';
+        document.getElementById('btnShowOutline').textContent = '📋 View Topic虾 Outline';
+    }
+};
+document.getElementById('btnEditOutlineFromStage2').onclick = function() {
+    // Return to Stage 1 with current outline loaded for editing
+    document.getElementById('outlineOutput').value = state.outline;
+    document.getElementById('stage2').style.display = '';
+    document.getElementById('stage2').classList.remove('show');
+    document.getElementById('stage1').style.display = '';
+    document.getElementById('stage1').classList.add('show');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    showToast('✏️ Edit your Topic虾 Outline, then confirm again');
+};
+document.getElementById('btnShowOutline2').onclick = function() {
+    var el = document.getElementById('outlineRecall2');
+    if (el.style.display === 'none') {
+        el.style.display = 'block';
+        el.textContent = state.outline;
+        document.getElementById('btnShowOutline2').textContent = '📋 Hide Topic虾 Outline';
+    } else {
+        el.style.display = 'none';
+        document.getElementById('btnShowOutline2').textContent = '📋 View Topic虾 Outline';
+    }
+};
+document.getElementById('btnSubmitReview').onclick = submitReview;
+document.getElementById('btnApprove').onclick = approveAndFinalize;
+document.getElementById('btnTriggerRev').onclick = triggerRevision;
+document.getElementById('btnCopyFinal').onclick = copyFinal;
+document.getElementById('btnExportHTML').onclick = exportAsHTML;
+document.getElementById('btnReset').onclick = resetAll;
+
+// History sidebar
+document.getElementById('btnOpenHistory').onclick = openHistory;
+document.getElementById('closeSidebar').onclick = closeSidebar;
+document.getElementById('historyOverlay').onclick = closeSidebar;
+document.getElementById('clearAllHistory').onclick = clearAllHistory;
+document.getElementById('closeModal').onclick = closeModal;
+document.getElementById('modalCopy').onclick = function() {
+    copyToClipboard(document.getElementById('modalContent').textContent);
+};
+document.getElementById('modalRestore').onclick = function() {
+    if (!currentModalId) return;
+    var history = getHistory();
+    var item = history.find(function(h) { return h.id === currentModalId; });
+    if (!item) return;
+    // Restore to state
+    state.direction = item.direction || '';
+    state.title = item.title || '';
+    state.audience = item.audience || '';
+    state.type = item.type || '';
+    state.draft = item.draft || '';
+    // Populate UI
+    document.getElementById('inputDirection').value = item.direction || '';
+    document.getElementById('inputAudience').value = item.audience || '';
+    document.getElementById('inputType').value = item.type || '';
+    document.getElementById('draftInput').value = item.draft || '';
+    document.getElementById('draftOutput').textContent = item.draft || '';
+    closeModal();
+    closeSidebar();
+    // Show draft confirmed state
+    document.getElementById('stage2').style.display = 'none';
+    document.getElementById('stage2Done').style.display = 'block';
+    var badge = document.querySelector('#stage2Done .status-badge');
+    if (badge) { badge.textContent = '✓ Restored from History'; badge.className = 'status-badge passed'; }
+    showStage('stage2Done');
+    showToast('🚀 Draft restored from history');
+};
+document.getElementById('modalDelete').onclick = function() {
+    if (!currentModalId) return;
+    if (confirm('Delete this article from history?')) {
+        deleteFromHistory(currentModalId);
+        renderHistoryList();
+        closeModal();
+        showToast('🗑️ Deleted from history');
+    }
+};
+
+// Tab switching
+document.getElementById('tab1').onclick = function() {
+    document.querySelectorAll('.detail-panel').forEach(function(p) { p.classList.remove('active'); });
+    document.querySelectorAll('.detail-tab').forEach(function(t) { t.classList.remove('active'); });
+    document.getElementById('panel1').classList.add('active');
+    this.classList.add('active');
+};
+document.getElementById('tab2').onclick = function() {
+    document.querySelectorAll('.detail-panel').forEach(function(p) { p.classList.remove('active'); });
+    document.querySelectorAll('.detail-tab').forEach(function(t) { t.classList.remove('active'); });
+    document.getElementById('panel2').classList.add('active');
+    this.classList.add('active');
+};
+document.getElementById('tab3').onclick = function() {
+    document.querySelectorAll('.detail-panel').forEach(function(p) { p.classList.remove('active'); });
+    document.querySelectorAll('.detail-tab').forEach(function(t) { t.classList.remove('active'); });
+    document.getElementById('panel3').classList.add('active');
+    this.classList.add('active');
+};
+
+// ============================================================
+// API PROVIDER BANNER LOGIC
+// ============================================================
+(function initApiProvider() {
+    var savedProvider = localStorage.getItem('ai_provider') || 'anthropic';
+    var savedKey      = localStorage.getItem('ai_key_' + savedProvider) || '';
+
+    document.getElementById('providerSelect').value = savedProvider;
+    updateProviderHint(savedProvider);
+
+    if (savedKey) {
+        document.getElementById('apiKeyInput').value = savedKey;
+        AI_CONFIG.provider = savedProvider;
+        AI_CONFIG.apiKey   = savedKey;
+        setConnectedState(savedProvider);
+    }
+})();
+
+document.getElementById('providerSelect').onchange = function() {
+    var provider = this.value;
+    updateProviderHint(provider);
+    // Load saved key for this provider if any
+    var saved = localStorage.getItem('ai_key_' + provider) || '';
+    document.getElementById('apiKeyInput').value = saved;
+    if (saved) {
+        AI_CONFIG.provider = provider;
+        AI_CONFIG.apiKey   = saved;
+        setConnectedState(provider);
+    } else {
+        document.getElementById('apiKeyBanner').classList.remove('connected');
+        document.getElementById('apiKeyStatus').textContent = '⚠️ Enter your API key and click Connect';
+        document.getElementById('btnSaveKey').textContent = 'Connect';
+    }
+};
+
+document.getElementById('btnSaveKey').onclick = function() {
+    var provider = document.getElementById('providerSelect').value;
+    var key = document.getElementById('apiKeyInput').value.trim();
+    var meta = PROVIDER_META[provider];
+    if (!key || !meta.validate(key)) {
+        document.getElementById('apiKeyStatus').textContent = '⚠️ Invalid key format for ' + meta.label;
+        return;
+    }
+    AI_CONFIG.provider = provider;
+    AI_CONFIG.apiKey   = key;
+    localStorage.setItem('ai_provider', provider);
+    localStorage.setItem('ai_key_' + provider, key);
+    setConnectedState(provider);
+    showToast('✅ ' + meta.label + ' connected!');
+};
+
+function updateProviderHint(provider) {
+    var meta = PROVIDER_META[provider] || PROVIDER_META.anthropic;
+    document.getElementById('providerHint').textContent = meta.hint;
+    document.getElementById('apiKeyInput').placeholder = meta.placeholder;
+}
+
+function setConnectedState(provider) {
+    var meta = PROVIDER_META[provider] || PROVIDER_META.anthropic;
+    document.getElementById('apiKeyBanner').classList.add('connected');
+    document.getElementById('apiKeyStatus').textContent = '✅ Connected · ' + meta.label;
+    document.getElementById('btnSaveKey').textContent = 'Update';
+}
+
+document.getElementById('btnTestKey').onclick = async function() {
+    var btn = this;
+    if (!AI_CONFIG.provider || !AI_CONFIG.apiKey) {
+        document.getElementById('apiKeyStatus').textContent = '⚠️ Connect an API key first';
+        return;
+    }
+    btn.disabled = true;
+    btn.textContent = '⏳ Testing...';
+    document.getElementById('apiKeyStatus').textContent = '🔄 Testing connection...';
+
+    var testDone = false;
+    await streamClaude(
+        'You are a helpful assistant.',
+        'Reply with exactly: OK',
+        function(chunk, full) { if (!testDone) { testDone = true; } },
+        function(full) {
+            document.getElementById('apiKeyStatus').textContent = '✅ Connected & Working · ' + PROVIDER_META[AI_CONFIG.provider].label;
+            showToast('✅ API connection works!');
+            btn.disabled = false; btn.textContent = '🧪 Test';
+        },
+        function(err) {
+            var errMsg = err && err.message ? err.message : String(err);
+            var isCors = errMsg.toLowerCase().includes('failed to fetch') || errMsg.toLowerCase().includes('cors');
+            if (isCors) {
+                document.getElementById('apiKeyStatus').textContent = '❌ CORS blocked — run file from a local server (see below)';
+                showCorsHelp();
+            } else {
+                document.getElementById('apiKeyStatus').textContent = '❌ ' + errMsg.slice(0, 80);
+            }
+            document.getElementById('apiKeyBanner').classList.remove('connected');
+            btn.disabled = false; btn.textContent = '🧪 Test';
+        }
+    );
+};
+
+function showCorsHelp() {
+    var existing = document.getElementById('corsHelp');
+    if (existing) return;
+    var div = document.createElement('div');
+    div.id = 'corsHelp';
+    div.style.cssText = 'background:#fff3cd;border:1.5px solid #ffc107;border-radius:12px;padding:16px 20px;margin:12px 24px;font-size:13px;line-height:1.8;';
+    div.innerHTML = '<strong>🛡️ CORS blocked — the browser is preventing direct API calls from a local file.</strong><br>' +
+        'Fix: serve this file from a local HTTP server instead of opening it directly.<br><br>' +
+        '<strong>Option 1 — Python (easiest):</strong><br>' +
+        '<code style="background:#f5f5f5;padding:4px 10px;border-radius:6px;font-size:12px;">cd /your/folder && python3 -m http.server 8080</code><br>' +
+        'Then open: <a href="http://localhost:8080" target="_blank">http://localhost:8080</a><br><br>' +
+        '<strong>Option 2 — VS Code:</strong> Install the <em>Live Server</em> extension, right-click the file → "Open with Live Server"<br><br>' +
+        '<button onclick="document.getElementById(\'corsHelp\').remove()" style="margin-top:8px;padding:4px 12px;border-radius:6px;border:1px solid #ccc;background:white;cursor:pointer;font-size:12px;">✕ Dismiss</button>';
+    var banner = document.getElementById('apiKeyBanner');
+    banner.parentNode.insertBefore(div, banner.nextSibling);
+}
+
+// Init
+updateHistoryCount();
+</script>
+
+</body>
+</html>
